@@ -1,0 +1,58 @@
+[project]
+name = "ai-prompt-manager"
+version = "1.0.0"
+description = "Teaching-focused Python tool for managing AI prompt libraries with knowledge base, profession designer, and agent onboarding"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "zzt108", email = "zzt108@github.com"}
+]
+keywords = ["ai", "prompts", "knowledge-management", "tkinter", "asset-manager", "teaching"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "structlog>=24.1.0",
+    "pytest>=8.0.0",
+    "mypy>=1.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.1.0",
+    "pytest-cov>=4.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/zzt108/AIPromptManager"
+Repository = "https://github.com/zzt108/AIPromptManager"
+Issues = "https://github.com/zzt108/AIPromptManager/issues"
+
+[project.scripts]
+aipromptmanager = "main:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+mypy_path = "src"
+explicit_package_bases = true
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]

@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "ingredients": {
+    "GUIDE-1-0-Getting-Started": {
+      "name": "GUIDE-1-0-Getting-Started",
+      "type": "GUIDE",
+      "major": 1,
+      "minor": 0,
+      "basename": "Getting-Started",
+      "path": "sample_data/prompts/GUIDE-1-0-Getting-Started.md",
+      "description": "Getting Started with AIPromptManager",
+      "is_enabled": true
+    },
+    "SPACE-1-0-Web-Development": {
+      "name": "SPACE-1-0-Web-Development",
+      "type": "SPACE",
+      "major": 1,
+      "minor": 0,
+      "basename": "Web-Development",
+      "path": "sample_data/prompts/SPACE-1-0-Web-Development.md",
+      "description": "Web Development",
+      "is_enabled": true
+    },
+    "PROMPT-1-0-Code-Review": {
+      "name": "PROMPT-1-0-Code-Review",
+      "type": "PROMPT",
+      "major": 1,
+      "minor": 0,
+      "basename": "Code-Review",
+      "path": "sample_data/prompts/PROMPT-1-0-Code-Review.md",
+      "description": "Code Review Checklist",
+      "is_enabled": true
+    }
+  }
+}

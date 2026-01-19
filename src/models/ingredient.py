@@ -1,0 +1,77 @@
+"""Ingredient model for AI Prompt Manager registry."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+
+@dataclass
+class Ingredient:
+    """Represents a single ingredient in the registry.
+
+    An ingredient is a reusable asset (GUIDE, SPACE, PROMPT, etc.) tracked
+    in the registry.json file.
+
+    Attributes:
+        name: Unique identifier for the ingredient
+        path: Relative path to the ingredient file from repo root
+        description: Auto-extracted from H1 heading in markdown
+        type: Category (GUIDE, SPACE, PROMPT, etc.)
+        major: Major version number
+        minor: Minor version number
+        basename: Core name without version suffix
+        is_enabled: Whether the ingredient is visible in Profession Designer
+    """
+
+    name: str
+    path: Path
+    description: str
+    type: str
+    major: int
+    minor: int
+    basename: str
+    is_enabled: bool = True
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> Ingredient:
+        """Create Ingredient instance from dictionary.
+
+        Args:
+            data: Dictionary containing ingredient data
+
+        Returns:
+            Ingredient instance
+
+        Raises:
+            KeyError: If required field is missing
+            TypeError: If field type is incorrect
+        """
+        return Ingredient(
+            name=data["name"],
+            path=Path(data["path"]),
+            description=data["description"],
+            type=data["type"],
+            major=int(data["major"]),
+            minor=int(data["minor"]),
+            basename=data["basename"],
+            is_enabled=data.get("is_enabled", True),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert ingredient to dictionary.
+
+        Returns:
+            Dictionary representation suitable for JSON serialization
+        """
+        return {
+            "name": self.name,
+            "path": self.path.as_posix(),
+            "description": self.description,
+            "type": self.type,
+            "major": self.major,
+            "minor": self.minor,
+            "basename": self.basename,
+            "is_enabled": self.is_enabled,
+        }
