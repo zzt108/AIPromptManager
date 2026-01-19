@@ -138,7 +138,7 @@ def test_new_profession(config_panel):
     """Test clearing the profession."""
     config_panel.selected_list.insert("end", "item1")
 
-    with patch("tkinter.messagebox.askyesno", return_value=True):
+    with patch("ui.config_panel.messagebox.askyesno", return_value=True):
         config_panel._new_config()
 
     assert config_panel.selected_list.size() == 0
