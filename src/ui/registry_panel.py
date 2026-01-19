@@ -31,7 +31,7 @@ class RegistryPanel(ttk.Frame):
 
     def __init__(
         self,
-        parent: tk.Widget,
+        parent: tk.Misc,
         service: RegistryService,
         status_callback: Callable[[str], None],
     ) -> None:

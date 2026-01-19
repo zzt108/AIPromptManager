@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 import pytest
 
@@ -13,7 +13,7 @@ from models.registry_schema import RegistrySchema
 
 
 @pytest.fixture(scope="session")
-def tk_root() -> tk.Tk:
+def tk_root() -> Generator[tk.Tk, None, None]:
     """Create a single session-scoped hidden Tk root.
 
     This avoids 'invalid command name tcl_findLibrary' and other

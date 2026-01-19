@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import os
 import tkinter as tk
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
+
 
 # Detect if running in CI or headless environment
 _is_ci = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
@@ -23,7 +24,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture(scope="module")
-def main_window(tk_root):
+def main_window(tk_root: tk.Tk) -> Generator[MainWindow, None, None]:
     """Create a single MainWindow instance for the entire module."""
     mock_registry_service = MagicMock()
     mock_registry_service.list_all.return_value = []
@@ -63,20 +64,21 @@ class TestMainWindow:
 
     def test_mainwindow_has_registry_tab(self, main_window: MainWindow) -> None:
         """Test that Knowledge Base tab exists in notebook."""
-        tabs = main_window.notebook.tabs()
+        tabs = main_window.notebook.tabs()  # type: ignore[no-untyped-call]
         assert len(tabs) >= 2
 
         # Check tab names
-        tab_text_0 = main_window.notebook.tab(tabs[0], "text")
+        tab_text_0 = main_window.notebook.tab(tabs[0], "text")  # type: ignore[no-untyped-call]
         assert tab_text_0 == "Knowledge Base"
 
     def test_mainwindow_has_build_tab(self, main_window: MainWindow) -> None:
         """Test that Agent Onboarding tab exists in notebook."""
-        tabs = main_window.notebook.tabs()
-        tab_text_2 = main_window.notebook.tab(tabs[2], "text")
+        tabs = main_window.notebook.tabs()  # type: ignore[no-untyped-call]
+        tab_text_2 = main_window.notebook.tab(tabs[2], "text")  # type: ignore[no-untyped-call]
         assert tab_text_2 == "Agent Onboarding"
 
     def test_status_bar_initial_text(self, main_window: MainWindow) -> None:
         """Test that status bar shows skill count after load."""
-        status_text = main_window.status_bar.cget("text")
+        status_text: str = main_window.status_bar.cget("text")
         assert "0 skills" in status_text
+

@@ -3,62 +3,70 @@
 import sys
 from unittest.mock import MagicMock, patch
 from pathlib import Path
+from typing import Any, Generator, Optional
+import tkinter as tk
 
 import pytest
 
-# Mock tkinter before importing dialogs
-mock_tk = MagicMock()
-mock_tk.Tk = MagicMock()
+
+@pytest.fixture
+def mock_tkinter_modules() -> Generator[Any, None, None]:
+    """Patch tkinter and ttk modules for these tests."""
+    mock_tk = MagicMock()
+    mock_tk.Tk = MagicMock()
+    mock_tk.Toplevel = MockToplevel
+    
+    with patch.dict(sys.modules, {"tkinter": mock_tk, "tkinter.ttk": MagicMock()}):
+        # We must import the module UNDER TEST inside the patch so it picks up the mocks
+        if "ui.dialogs.sync_dialogs" in sys.modules:
+            del sys.modules["ui.dialogs.sync_dialogs"]
+        import ui.dialogs.sync_dialogs
+        yield ui.dialogs.sync_dialogs
 
 
+# Move MockToplevel definition here to be accessible
 class MockToplevel:
-    def __init__(self, *args, **kwargs):
-        self.title_val = None
-        self.transient_val = None
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.title_val: Optional[str] = None
+        self.transient_val: Optional[tk.Widget] = None
         self.master = MagicMock()
         self.master.winfo_rootx.return_value = 0
         self.master.winfo_rooty.return_value = 0
         self.master.winfo_width.return_value = 1000
         self.master.winfo_height.return_value = 800
 
-    def title(self, val=None):
+    def title(self, val: Optional[str] = None) -> Optional[str]:
         if val:
             self.title_val = val
         return self.title_val
 
-    def transient(self, master=None):
+    def transient(self, master: Optional[tk.Widget] = None) -> None:
         self.transient_val = master
 
-    def grab_set(self):
+    def grab_set(self) -> None:
         pass
 
-    def wait_window(self):
+    def wait_window(self) -> None:
         pass
 
-    def geometry(self, *args):
+    def geometry(self, *args: Any) -> None:
         pass
 
-    def resizable(self, *args):
+    def resizable(self, *args: Any) -> None:
         pass
 
-    def update_idletasks(self):
+    def update_idletasks(self) -> None:
         pass
 
-    def destroy(self):
+    def destroy(self) -> None:
         pass
 
-
-mock_tk.Toplevel = MockToplevel
-sys.modules["tkinter"] = mock_tk
-sys.modules["tkinter.ttk"] = MagicMock()
 
 from models.ingredient import Ingredient
 from models.sync_types import SyncAction, SyncStatus, SyncTask
-from ui.dialogs.sync_dialogs import UpdateAvailableDialog, LocalChangesDialog
-
 
 @pytest.fixture
-def mock_task():
+def mock_task() -> SyncTask:
     return SyncTask(
         ingredient=Ingredient(
             name="test",
@@ -79,11 +87,12 @@ def mock_task():
 
 class TestSyncDialogs:
 
-    def test_update_available_dialog_init(self, mock_task):
+    def test_update_available_dialog_init(self, mock_tkinter_modules: Any, mock_task: SyncTask) -> None:
+        sync_dialogs = mock_tkinter_modules
         parent = MagicMock()
 
         # Instantiate dialog directly
-        dialog = UpdateAvailableDialog(parent, mock_task)
+        dialog = sync_dialogs.UpdateAvailableDialog(parent, mock_task)
 
         # Verify title was set
         assert dialog.title_val == "Update Available"
@@ -94,10 +103,11 @@ class TestSyncDialogs:
         # Verify task is set
         assert dialog.task == mock_task
 
-    def test_local_changes_dialog_init(self, mock_task):
+    def test_local_changes_dialog_init(self, mock_tkinter_modules: Any, mock_task: SyncTask) -> None:
+        sync_dialogs = mock_tkinter_modules
         parent = MagicMock()
 
-        dialog = LocalChangesDialog(parent, mock_task)
+        dialog = sync_dialogs.LocalChangesDialog(parent, mock_task)
 
         assert dialog.title_val == "Local Changes Detected"
         assert dialog.transient_val == parent

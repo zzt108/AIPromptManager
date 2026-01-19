@@ -42,7 +42,7 @@ def mock_registry_service() -> MagicMock:
 
 
 @pytest.fixture
-def config_panel(tk_root, mock_registry_service: MagicMock) -> ConfigPanel:
+def config_panel(tk_root: tk.Tk, mock_registry_service: MagicMock) -> ConfigPanel:
     """Create a ConfigPanel instance using the shared root."""
     # Create a new notebook for each test to keep widgets isolated
     notebook = ttk.Notebook(tk_root)
@@ -50,7 +50,7 @@ def config_panel(tk_root, mock_registry_service: MagicMock) -> ConfigPanel:
     return panel
 
 
-def test_initial_state(config_panel, mock_registry_service):
+def test_initial_state(config_panel: ConfigPanel, mock_registry_service: MagicMock) -> None:
     """Test that the panel initializes correctly."""
     available = config_panel.available_list.get(0, "end")
     assert available == ("ingredient1", "ingredient2")
@@ -59,7 +59,7 @@ def test_initial_state(config_panel, mock_registry_service):
     assert selected == ()
 
 
-def test_add_selected(config_panel):
+def test_add_selected(config_panel: ConfigPanel) -> None:
     """Test adding items from available to selected list."""
     # Select first item in available list
     config_panel.available_list.selection_set(0)
@@ -70,7 +70,7 @@ def test_add_selected(config_panel):
     assert selected == ("ingredient1",)
 
 
-def test_add_duplicate_prevention(config_panel):
+def test_add_duplicate_prevention(config_panel: ConfigPanel) -> None:
     """Test that duplicates are not added."""
     # Add item once
     config_panel.available_list.selection_set(0)
@@ -84,7 +84,7 @@ def test_add_duplicate_prevention(config_panel):
     assert selected == ("ingredient1",)
 
 
-def test_remove_selected(config_panel):
+def test_remove_selected(config_panel: ConfigPanel) -> None:
     """Test removing items from selected list."""
     # setup: add an item
     config_panel.available_list.selection_set(0)
@@ -99,7 +99,7 @@ def test_remove_selected(config_panel):
     assert selected == ()
 
 
-def test_move_up(config_panel):
+def test_move_up(config_panel: ConfigPanel) -> None:
     """Test moving an item up."""
     # Add two items
     config_panel.available_list.selection_set(0)
@@ -120,7 +120,7 @@ def test_move_up(config_panel):
     assert current == ("item2", "item1")
 
 
-def test_move_down(config_panel):
+def test_move_down(config_panel: ConfigPanel) -> None:
     """Test moving an item down."""
     config_panel.selected_list.insert("end", "item1")
     config_panel.selected_list.insert("end", "item2")
@@ -134,7 +134,7 @@ def test_move_down(config_panel):
     assert current == ("item2", "item1")
 
 
-def test_new_profession(config_panel):
+def test_new_profession(config_panel: ConfigPanel) -> None:
     """Test clearing the profession."""
     config_panel.selected_list.insert("end", "item1")
 
@@ -144,7 +144,7 @@ def test_new_profession(config_panel):
     assert config_panel.selected_list.size() == 0
 
 
-def test_load_profession(config_panel, tmp_path):
+def test_load_profession(config_panel: ConfigPanel, tmp_path: Path) -> None:
     """Test loading profession from file."""
     config_file = tmp_path / "agent.config.json"
     config_data = {"ingredients": ["file1", "file2"]}
@@ -156,7 +156,7 @@ def test_load_profession(config_panel, tmp_path):
     assert selected == ("file1", "file2")
 
 
-def test_save_profession(config_panel, tmp_path):
+def test_save_profession(config_panel: ConfigPanel, tmp_path: Path) -> None:
     """Test saving profession to file."""
     config_panel.selected_list.insert("end", "saved1")
     config_panel.selected_list.insert("end", "saved2")
@@ -168,3 +168,4 @@ def test_save_profession(config_panel, tmp_path):
     assert save_path.exists()
     data = json.loads(save_path.read_text(encoding="utf-8"))
     assert data["ingredients"] == ["saved1", "saved2"]
+
