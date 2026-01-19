@@ -103,9 +103,7 @@ class TestConventionsSchema:
 
     def test_extract_parent_type_custom_separator(self) -> None:
         """Test extract_parent_type with custom separator."""
-        schema = ConventionsSchema(
-            file_naming=FileNaming(type_separator="-")
-        )
+        schema = ConventionsSchema(file_naming=FileNaming(type_separator="-"))
         assert schema.extract_parent_type("GUIDE-CC") == "GUIDE"
 
     def test_is_known_type_simple(self) -> None:

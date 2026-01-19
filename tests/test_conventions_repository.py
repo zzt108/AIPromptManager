@@ -97,7 +97,9 @@ class TestLoadOrDefault:
         sample_conventions_file: Path,
     ) -> None:
         """Test load_or_default returns conventions and no warnings."""
-        conventions, warnings = conventions_repo.load_or_default(sample_conventions_file)
+        conventions, warnings = conventions_repo.load_or_default(
+            sample_conventions_file
+        )
         assert conventions.file_naming.pattern == "{TYPE}-{VERSION}-{DESCRIPTION}"
         assert len(warnings) == 0
 

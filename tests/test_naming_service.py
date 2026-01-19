@@ -45,7 +45,9 @@ class TestParseFilename:
         self, default_naming_service: NamingService
     ) -> None:
         """Test parsing filename with subtype in type."""
-        result = default_naming_service.parse_filename("GUIDE_CC-1-0-CodingConvention.md")
+        result = default_naming_service.parse_filename(
+            "GUIDE_CC-1-0-CodingConvention.md"
+        )
         assert result["type"] == "GUIDE_CC"
         assert result["major"] == 1
         assert result["minor"] == 0
@@ -113,7 +115,9 @@ class TestMakeVersionless:
         self, default_naming_service: NamingService
     ) -> None:
         """Test make_versionless preserves subtype."""
-        result = default_naming_service.make_versionless("GUIDE_CC-1-0-CodingConvention.md")
+        result = default_naming_service.make_versionless(
+            "GUIDE_CC-1-0-CodingConvention.md"
+        )
         assert result == "GUIDE_CC--CodingConvention.md"
 
     def test_make_versionless_unknown_format_unchanged(
@@ -127,9 +131,7 @@ class TestMakeVersionless:
 class TestMakeVersioned:
     """Tests for make_versioned method."""
 
-    def test_make_versioned_simple(
-        self, default_naming_service: NamingService
-    ) -> None:
+    def test_make_versioned_simple(self, default_naming_service: NamingService) -> None:
         """Test creating versioned filename."""
         result = default_naming_service.make_versioned(
             basename="General",
