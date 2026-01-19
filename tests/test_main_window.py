@@ -11,6 +11,7 @@ import pytest
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
+
 @pytest.fixture(scope="module")
 def main_window(tk_root):
     """Create a single MainWindow instance for the entire module."""
@@ -26,7 +27,7 @@ def main_window(tk_root):
         # MainWindow calls super().__init__() which becomes Toplevel().__init__()
         # This automatically attaches to the existing default root (created by tk_root)
         window = MainWindow(mock_registry_service, mock_agent_builder)
-    
+
     window.withdraw()
 
     yield window
