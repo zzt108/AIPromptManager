@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tkinter as tk
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -10,6 +11,15 @@ import pytest
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
+
+# Detect if running in CI or headless environment
+_is_ci = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
+
+# Skip all tests in this module if in CI (no display available)
+pytestmark = pytest.mark.skipif(
+    _is_ci,
+    reason="MainWindow tests require a display (Tcl/Tk) which is not available in CI",
+)
 
 
 @pytest.fixture(scope="module")
