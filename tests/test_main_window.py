@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import tkinter as tk
-from unittest.mock import MagicMock
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ui.main_window import MainWindow
-
-# Window will be created in fixture
-
+if TYPE_CHECKING:
+    from ui.main_window import MainWindow
 
 @pytest.fixture(scope="module")
 def main_window(tk_root):
@@ -19,10 +18,15 @@ def main_window(tk_root):
     mock_registry_service.list_all.return_value = []
     mock_agent_builder = MagicMock()
 
-    # Note: MainWindow inherits from tk.Tk, which is still problematic
-    # if it doesn't take a master. But our fixture ensures at least
-    # one root exists.
-    window = MainWindow(mock_registry_service, mock_agent_builder)
+    # Patch tk.Tk to be Toplevel so we don't try to create a second root
+    # which causes TclError in some environments (like CI)
+    with patch("tkinter.Tk", new=tk.Toplevel):
+        from ui.main_window import MainWindow
+
+        # MainWindow calls super().__init__() which becomes Toplevel().__init__()
+        # This automatically attaches to the existing default root (created by tk_root)
+        window = MainWindow(mock_registry_service, mock_agent_builder)
+    
     window.withdraw()
 
     yield window
