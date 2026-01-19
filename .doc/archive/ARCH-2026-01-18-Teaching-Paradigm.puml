@@ -1,0 +1,47 @@
+@startuml
+skinparam handwritten true
+skinparam packageStyle rectangle
+allowmixing
+
+
+package "Asset Manager (Teaching Paradigm)" {
+    class MainWindow {
+        +Notebook: TabControl
+    }
+
+    class "Knowledge Base\n(formerly Registry)" as KB {
+        +list_all()
+        +view_details()
+    }
+
+    class "Profession Designer\n(formerly Config Editor)" as Profession {
+        +Available Skills (List)
+        +Selected Skills (List)
+        +Quick View (Popup)
+        +create_profession()
+    }
+
+    class "Agent Onboarding\n(formerly Build Agent)" as Onboarding {
+        +verify_requirements()
+        +deploy_agent()
+    }
+
+    MainWindow *-- KB
+    MainWindow *-- Profession
+    MainWindow *-- Onboarding
+
+    note right of Profession
+        New Features:
+        * Double-click to move
+        * Quick View (TOC + Summary)
+    end note
+}
+
+package "FileSystem" {
+    folder ".agent/rules" as Rules
+    folder ".doc/plans" as Plans
+}
+
+Rules --> Plans : "Plan files moved here"
+
+@enduml

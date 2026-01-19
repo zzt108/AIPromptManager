@@ -1,0 +1,50 @@
+@startuml
+skinparam handwritten true
+skinparam packageStyle rectangle
+allowmixing
+
+package "Asset Manager (Teaching Paradigm)" {
+    class MainWindow {
+        +Notebook: TabControl
+        -- Tabs --
+        1. Knowledge Base
+        2. Profession Designer
+        3. Agent Onboarding
+    }
+
+    class "Knowledge Base" as KB {
+        +list_all()
+        +view_details()
+    }
+
+    class "Profession Designer" as Profession {
+        +Knowledge Base (List)
+        +Profession Skills (List)
+        +create_profession()
+        +save_profession()
+        +load_profession()
+    }
+
+    class "Agent Onboarding" as Onboarding {
+        +Profession Definition (Input)
+        +Agent Rules Folder (Output)
+        +onboard_agent()
+    }
+
+    MainWindow *-- KB
+    MainWindow *-- Profession
+    MainWindow *-- Onboarding
+
+    note right of Profession
+        Planned Features:
+        * Double-click to move
+        * Quick View (Popup)
+    end note
+}
+
+package "FileSystem" {
+    folder ".agent/rules" as Rules
+    folder ".doc/plans" as Plans
+}
+
+@enduml
