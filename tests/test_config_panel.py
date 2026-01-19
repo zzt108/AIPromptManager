@@ -41,8 +41,6 @@ def mock_registry_service() -> MagicMock:
     return service
 
 
-
-
 @pytest.fixture
 def config_panel(tk_root, mock_registry_service: MagicMock) -> ConfigPanel:
     """Create a ConfigPanel instance using the shared root."""

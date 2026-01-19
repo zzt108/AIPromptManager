@@ -55,11 +55,11 @@ class RegistrySchema:
             for item in ingredients_data:
                 if not isinstance(item, dict):
                     raise ValueError(f"Invalid ingredient format: {item}")
-                
+
                 name = item.get("name")
                 if not name:
                     raise ValueError(f"Ingredient missing 'name' field: {item}")
-                
+
                 try:
                     ingredients[name] = Ingredient.from_dict(item)
                 except KeyError as e:

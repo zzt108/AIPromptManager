@@ -11,6 +11,7 @@ from ui.main_window import MainWindow
 
 # Window will be created in fixture
 
+
 @pytest.fixture(scope="module")
 def main_window(tk_root):
     """Create a single MainWindow instance for the entire module."""
@@ -18,8 +19,8 @@ def main_window(tk_root):
     mock_registry_service.list_all.return_value = []
     mock_agent_builder = MagicMock()
 
-    # Note: MainWindow inherits from tk.Tk, which is still problematic 
-    # if it doesn't take a master. But our fixture ensures at least 
+    # Note: MainWindow inherits from tk.Tk, which is still problematic
+    # if it doesn't take a master. But our fixture ensures at least
     # one root exists.
     window = MainWindow(mock_registry_service, mock_agent_builder)
     window.withdraw()

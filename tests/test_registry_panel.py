@@ -25,8 +25,6 @@ def make_ingredient(name: str, ing_type: str = "GUIDE") -> Ingredient:
     )
 
 
-
-
 class TestRegistryPanel:
     """Test cases for RegistryPanel class."""
 

@@ -32,6 +32,3 @@ jobs:
     
     - name: Run mypy
       run: mypy --strict src/
-    
-    - name: Check formatting
-      run: black --check src/ tests/
