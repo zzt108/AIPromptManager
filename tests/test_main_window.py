@@ -22,6 +22,11 @@ def main_window(tk_root):
     # Patch tk.Tk to be Toplevel so we don't try to create a second root
     # which causes TclError in some environments (like CI)
     with patch("tkinter.Tk", new=tk.Toplevel):
+        import importlib
+        import ui.main_window
+
+        # Force reload so MainWindow class is redefined using the patched tk.Tk
+        importlib.reload(ui.main_window)
         from ui.main_window import MainWindow
 
         # MainWindow calls super().__init__() which becomes Toplevel().__init__()
