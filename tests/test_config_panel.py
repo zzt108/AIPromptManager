@@ -50,7 +50,9 @@ def config_panel(tk_root: tk.Tk, mock_registry_service: MagicMock) -> ConfigPane
     return panel
 
 
-def test_initial_state(config_panel: ConfigPanel, mock_registry_service: MagicMock) -> None:
+def test_initial_state(
+    config_panel: ConfigPanel, mock_registry_service: MagicMock
+) -> None:
     """Test that the panel initializes correctly."""
     available = config_panel.available_list.get(0, "end")
     assert available == ("ingredient1", "ingredient2")
@@ -168,4 +170,3 @@ def test_save_profession(config_panel: ConfigPanel, tmp_path: Path) -> None:
     assert save_path.exists()
     data = json.loads(save_path.read_text(encoding="utf-8"))
     assert data["ingredients"] == ["saved1", "saved2"]
-

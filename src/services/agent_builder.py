@@ -14,14 +14,15 @@ from models.service_results import BuildResult, VersionUpdate
 from models.sync_types import SyncAction, SyncStatus, SyncTask
 
 if TYPE_CHECKING:
+    from services.naming_service import NamingService
     from services.registry_service import RegistryService
 
 logger = structlog.get_logger()
 
-# Pattern to convert versioned to version-less filename
+# Legacy pattern for backward compatibility when no NamingService provided
 # TYPE-MAJOR-MINOR-Name.md -> TYPE--Name.md
-VERSIONED_TO_VERSIONLESS = re.compile(
-    r"^(?P<type>[A-Z]+)-\d+-\d+-(?P<basename>.+\.md)$"
+_VERSIONED_TO_VERSIONLESS = re.compile(
+    r"^(?P<type>[A-Z_]+)-\d+-\d+-(?P<basename>.+\.md)$"
 )
 
 
@@ -40,15 +41,19 @@ class AgentBuilder:
         self,
         registry_service: RegistryService,
         repo_root: Path,
+        naming_service: NamingService | None = None,
     ) -> None:
         """Initialize agent builder.
 
         Args:
             registry_service: Service for looking up ingredients
             repo_root: Root path of the repository
+            naming_service: Optional NamingService for filename conversions.
+                           If None, uses legacy hardcoded pattern.
         """
         self.registry_service = registry_service
         self.repo_root = repo_root
+        self.naming_service = naming_service
 
     def get_sync_tasks(
         self,
@@ -323,7 +328,12 @@ class AgentBuilder:
         Returns:
             Version-less filename
         """
-        match = VERSIONED_TO_VERSIONLESS.match(filename)
+        # Use naming service if available
+        if self.naming_service is not None:
+            return self.naming_service.make_versionless(filename)
+
+        # Legacy fallback
+        match = _VERSIONED_TO_VERSIONLESS.match(filename)
         if match:
             return f"{match.group('type')}--{match.group('basename')}"
 

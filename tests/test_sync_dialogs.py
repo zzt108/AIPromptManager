@@ -15,12 +15,13 @@ def mock_tkinter_modules() -> Generator[Any, None, None]:
     mock_tk = MagicMock()
     mock_tk.Tk = MagicMock()
     mock_tk.Toplevel = MockToplevel
-    
+
     with patch.dict(sys.modules, {"tkinter": mock_tk, "tkinter.ttk": MagicMock()}):
         # We must import the module UNDER TEST inside the patch so it picks up the mocks
         if "ui.dialogs.sync_dialogs" in sys.modules:
             del sys.modules["ui.dialogs.sync_dialogs"]
         import ui.dialogs.sync_dialogs
+
         yield ui.dialogs.sync_dialogs
 
 
@@ -65,6 +66,7 @@ class MockToplevel:
 from models.ingredient import Ingredient
 from models.sync_types import SyncAction, SyncStatus, SyncTask
 
+
 @pytest.fixture
 def mock_task() -> SyncTask:
     return SyncTask(
@@ -87,7 +89,9 @@ def mock_task() -> SyncTask:
 
 class TestSyncDialogs:
 
-    def test_update_available_dialog_init(self, mock_tkinter_modules: Any, mock_task: SyncTask) -> None:
+    def test_update_available_dialog_init(
+        self, mock_tkinter_modules: Any, mock_task: SyncTask
+    ) -> None:
         sync_dialogs = mock_tkinter_modules
         parent = MagicMock()
 
@@ -103,7 +107,9 @@ class TestSyncDialogs:
         # Verify task is set
         assert dialog.task == mock_task
 
-    def test_local_changes_dialog_init(self, mock_tkinter_modules: Any, mock_task: SyncTask) -> None:
+    def test_local_changes_dialog_init(
+        self, mock_tkinter_modules: Any, mock_task: SyncTask
+    ) -> None:
         sync_dialogs = mock_tkinter_modules
         parent = MagicMock()
 

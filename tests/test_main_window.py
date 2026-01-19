@@ -81,4 +81,3 @@ class TestMainWindow:
         """Test that status bar shows skill count after load."""
         status_text: str = main_window.status_bar.cget("text")
         assert "0 skills" in status_text
-

@@ -39,21 +39,28 @@ class MainWindow(tk.Tk):
         self,
         registry_service: RegistryService,
         agent_builder: AgentBuilder,
+        startup_warnings: list[str] | None = None,
     ) -> None:
         """Initialize main window.
 
         Args:
             registry_service: Service for registry operations
             agent_builder: Service for building agent folders
+            startup_warnings: Optional list of warnings to display on startup
         """
         super().__init__()
         self._registry_service = registry_service
         self._agent_builder = agent_builder
+        self._startup_warnings = startup_warnings or []
 
         self._setup_window()
         self._setup_menu()
         self._setup_status_bar()
         self._setup_notebook()
+
+        # Show startup warnings in status bar
+        if self._startup_warnings:
+            self._set_status(f"⚠️ {self._startup_warnings[0]}")
 
         logger.info("main_window_initialized")
 

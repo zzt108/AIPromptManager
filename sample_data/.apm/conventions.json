@@ -1,0 +1,13 @@
+{
+  "file_naming": {
+    "pattern": "{TYPE}-{VERSION}-{DESCRIPTION}",
+    "version_format": "X-Y",
+    "supported_types": ["GUIDE", "SPACE", "PROMPT", "WORKFLOW"],
+    "output_pattern": "{TYPE}--{DESCRIPTION}",
+    "type_separator": "_"
+  },
+  "notes": [
+    "This is the conventions.json for AIPromptManager sample data.",
+    "type_separator: '_' allows subtypes like GUIDE_CC (Coding Convention)"
+  ]
+}

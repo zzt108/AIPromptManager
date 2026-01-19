@@ -8,22 +8,22 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from models.conventions_schema import ConventionsSchema
 from models.ingredient import Ingredient
 from models.registry_schema import RegistrySchema
 from models.service_results import RefreshResult
 
 if TYPE_CHECKING:
     from repositories.registry_repository import RegistryRepository
+    from services.naming_service import NamingService
 
 logger = structlog.get_logger()
 
-# Pattern for versioned filenames: TYPE-MAJOR-MINOR-Name.md
-VERSIONED_PATTERN = re.compile(
-    r"^(?P<type>[a-zA-Z0-9]+)-(?P<major>\d+)-(?P<minor>\d+)-(?P<basename>.+)\.md$"
+# Legacy patterns for backward compatibility when no NamingService provided
+_VERSIONED_PATTERN = re.compile(
+    r"^(?P<type>[a-zA-Z0-9_]+)-(?P<major>\d+)-(?P<minor>\d+)-(?P<basename>.+)\.md$"
 )
-
-# Pattern for version-less filenames: TYPE--Name.md
-VERSIONLESS_PATTERN = re.compile(r"^(?P<type>[a-zA-Z0-9]+)--(?P<basename>.+)\.md$")
+_VERSIONLESS_PATTERN = re.compile(r"^(?P<type>[a-zA-Z0-9_]+)--(?P<basename>.+)\.md$")
 
 
 class RegistryService:
@@ -43,6 +43,7 @@ class RegistryService:
         registry_repository: RegistryRepository,
         registry_path: Path,
         repo_root: Path,
+        naming_service: NamingService | None = None,
     ) -> None:
         """Initialize registry service.
 
@@ -50,10 +51,13 @@ class RegistryService:
             registry_repository: Repository for loading/saving registry
             registry_path: Path to registry.json
             repo_root: Root path of the repository for relative paths
+            naming_service: Optional NamingService for filename parsing.
+                           If None, uses legacy hardcoded patterns.
         """
         self.registry_repository = registry_repository
         self.registry_path = registry_path
         self.repo_root = repo_root
+        self.naming_service = naming_service
         self._registry: RegistrySchema | None = None
 
     def _load_registry(self) -> RegistrySchema:
@@ -411,10 +415,15 @@ class RegistryService:
         Raises:
             ValueError: If filename doesn't match expected pattern
         """
+        # Use naming service if available
+        if self.naming_service is not None:
+            return self.naming_service.extract_metadata(path)
+
+        # Legacy fallback for backward compatibility
         filename = path.name
 
         # Try versioned pattern first
-        match = VERSIONED_PATTERN.match(filename)
+        match = _VERSIONED_PATTERN.match(filename)
         if match:
             return (
                 match.group("type"),
@@ -424,7 +433,7 @@ class RegistryService:
             )
 
         # Try version-less pattern
-        match = VERSIONLESS_PATTERN.match(filename)
+        match = _VERSIONLESS_PATTERN.match(filename)
         if match:
             return (
                 match.group("type"),
