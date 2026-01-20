@@ -48,7 +48,8 @@ def configure_logging(
 
     # Structlog config: Wrap for stdlib formatter
     structlog.configure(
-        processors=shared_processors + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
+        processors=shared_processors
+        + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
@@ -67,7 +68,7 @@ def configure_logging(
     # Configure standard library logging
     root_logger = logging.getLogger()
     root_logger.setLevel(numeric_level)
-    
+
     # Bind app name to all loggers
     logger = structlog.get_logger()
     logger = logger.bind(app_name=app_name)
@@ -83,19 +84,26 @@ def configure_logging(
 
             class SeqHttpHandler(logging.Handler):
                 """Custom handler that sends logs directly to Seq via HTTP API."""
-                
-                def __init__(self, seq_url: str, batch_size: int = 10, flush_interval: float = 2.0):
+
+                def __init__(
+                    self,
+                    seq_url: str,
+                    batch_size: int = 10,
+                    flush_interval: float = 2.0,
+                ):
                     super().__init__()
                     self.seq_url = seq_url.rstrip("/")
                     self.batch_size = batch_size
                     self.flush_interval = flush_interval
-                    self.log_queue: queue.Queue = queue.Queue()
+                    self.log_queue: queue.Queue[dict[str, Any]] = queue.Queue()
                     self.session = requests.Session()
                     self._stop_event = threading.Event()
-                    self._flush_thread = threading.Thread(target=self._flush_loop, daemon=True)
+                    self._flush_thread = threading.Thread(
+                        target=self._flush_loop, daemon=True
+                    )
                     self._flush_thread.start()
-                
-                def emit(self, record):
+
+                def emit(self, record: logging.LogRecord) -> None:
                     try:
                         # Unwrap structlog dictionary
                         event_dict = None
@@ -103,24 +111,30 @@ def configure_logging(
                             event_dict = record.msg
                         elif hasattr(record.msg, "items"):
                             try:
-                                event_dict = dict(record.msg)
+                                event_dict = dict(record.msg)  # type: ignore[arg-type]
                             except:
                                 pass
-                        
+
                         if event_dict:
                             # Build CLEF payload
                             payload = {
-                                "@t": event_dict.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                                "@t": event_dict.get(
+                                    "timestamp", datetime.now(timezone.utc).isoformat()
+                                ),
                                 "@mt": event_dict.get("event", "unknown_event"),
-                                "@l": event_dict.get("level", "Information").capitalize(),
+                                "@l": event_dict.get(
+                                    "level", "Information"
+                                ).capitalize(),
                             }
-                            
+
                             # Add all properties (excluding internal ones)
                             exclude = {"event", "level", "timestamp", "logger"}
                             for k, v in event_dict.items():
                                 if k not in exclude:
                                     # Serialize non-primitive types
-                                    if not isinstance(v, (str, int, float, bool, type(None))):
+                                    if not isinstance(
+                                        v, (str, int, float, bool, type(None))
+                                    ):
                                         v = str(v)
                                     payload[k] = v
                         else:
@@ -131,28 +145,28 @@ def configure_logging(
                                 "@l": record.levelname.capitalize(),
                                 "logger": record.name,
                             }
-                        
+
                         self.log_queue.put(payload)
                     except Exception:
                         pass  # Silent fail - don't break logging
-                
-                def _flush_loop(self):
+
+                def _flush_loop(self) -> None:
                     """Background thread that flushes logs to Seq."""
                     while not self._stop_event.is_set():
                         self._flush_batch()
                         self._stop_event.wait(self.flush_interval)
                     # Final flush on shutdown
                     self._flush_batch()
-                
-                def _flush_batch(self):
+
+                def _flush_batch(self) -> None:
                     """Send accumulated logs to Seq."""
-                    batch = []
+                    batch: list[dict[str, Any]] = []
                     while len(batch) < self.batch_size:
                         try:
                             batch.append(self.log_queue.get_nowait())
                         except queue.Empty:
                             break
-                    
+
                     if batch:
                         try:
                             # CLEF format: newline-delimited JSON
@@ -160,20 +174,22 @@ def configure_logging(
                             self.session.post(
                                 f"{self.seq_url}/api/events/raw",
                                 data=payload,
-                                headers={"Content-Type": "application/vnd.serilog.clef"},
+                                headers={
+                                    "Content-Type": "application/vnd.serilog.clef"
+                                },
                                 timeout=5,
                             )
                         except Exception:
                             pass  # Silent fail
-                
-                def close(self):
+
+                def close(self) -> None:
                     self._stop_event.set()
                     self._flush_thread.join(timeout=2)
                     super().close()
 
             seq_handler = SeqHttpHandler(seq_url, batch_size=1, flush_interval=0.5)
             logging.getLogger().addHandler(seq_handler)
-            
+
             logger.info("seq_configured", seq_url=seq_url)
         except ImportError as e:
             logger.warning(

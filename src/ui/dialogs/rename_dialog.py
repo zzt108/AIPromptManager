@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from typing import TYPE_CHECKING, Any
 
 from models.ingredient import Ingredient
@@ -46,7 +46,7 @@ class RenameDialog(tk.Toplevel):
         self.resizable(False, False)
 
         # Make modal
-        self.transient(parent)  # type: ignore[arg-type]
+        self.transient(parent)  # type: ignore[call-overload]
         self.grab_set()
 
         self._init_vars()
@@ -200,10 +200,10 @@ class RenameDialog(tk.Toplevel):
             minor = self.minor_var.get()
 
             if not basename:
-                tk.messagebox.showerror("Error", "Name cannot be empty.", parent=self)
+                messagebox.showerror("Error", "Name cannot be empty.", parent=self)
                 return
             if not type_str:
-                tk.messagebox.showerror("Error", "Type cannot be empty.", parent=self)
+                messagebox.showerror("Error", "Type cannot be empty.", parent=self)
                 return
 
             self.result = {
@@ -215,4 +215,4 @@ class RenameDialog(tk.Toplevel):
             self.destroy()
 
         except tk.TclError:
-            tk.messagebox.showerror("Error", "Invalid numeric values.", parent=self)
+            messagebox.showerror("Error", "Invalid numeric values.", parent=self)
