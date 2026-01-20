@@ -112,8 +112,15 @@ class RegistryService:
             logger.error("skill_file_not_found", path=str(path))
             raise FileNotFoundError(f"Skill file not found: {path}")
 
-        # Extract metadata from filename
-        skill_type, major, minor, basename = self._extract_metadata(path)
+        # Extract metadata intelligently
+        (
+            skill_type,
+            major,
+            minor,
+            basename,
+            status,
+            status_detail,
+        ) = self._extract_metadata_intelligently(path)
 
         # Derive skill name from path
         name = self._derive_skill_name(path)
@@ -137,6 +144,8 @@ class RegistryService:
             major=major,
             minor=minor,
             basename=basename,
+            status=status,
+            status_detail=status_detail,
         )
 
         # Add to registry and save
@@ -441,6 +450,35 @@ class RegistryService:
             )
 
         raise ValueError(f"Filename doesn't match expected pattern: {filename}")
+
+    def _extract_metadata_intelligently(
+        self,
+        path: Path,
+    ) -> tuple[str, int, int, str, str, str | None]:
+        """Extract metadata using multiple strategies.
+
+        Returns:
+            Tuple of (type, major, minor, basename, status, status_detail)
+        """
+        # Strategy 1: strict using existing extraction logic
+        try:
+            t, M, m, b = self._extract_metadata(path)
+            # If successful, it's valid
+            return t, M, m, b, "valid", None
+        except ValueError as e:
+            # Fallback to permissive mode
+            error_msg = str(e)
+
+        # Strategy 2-4: Fallback defaults for now
+        # Future: Implement H1/Frontmatter extraction here
+        return (
+            "Uncategorized",
+            0,
+            0,
+            path.stem,
+            "unrecognized",
+            f"Pattern mismatch: {error_msg}",
+        )
 
     def _extract_h1_heading(self, path: Path) -> str:
         """Extract H1 heading from markdown file as description.

@@ -33,6 +33,8 @@ class Skill:
     minor: int
     basename: str
     is_enabled: bool = True
+    status: str = "valid"
+    status_detail: str | None = None
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> Skill:
@@ -57,6 +59,8 @@ class Skill:
             minor=int(data["minor"]),
             basename=data["basename"],
             is_enabled=data.get("is_enabled", True),
+            status=data.get("status", "valid"),
+            status_detail=data.get("status_detail"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -74,4 +78,6 @@ class Skill:
             "minor": self.minor,
             "basename": self.basename,
             "is_enabled": self.is_enabled,
+            "status": self.status,
+            "status_detail": self.status_detail,
         }
