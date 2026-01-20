@@ -483,6 +483,40 @@ class TestRenameSkill:
         assert new_ing is not None
         assert new_ing.basename == "RenamedGeneral"
 
+    def test_rename_skill_preserves_other_skills(
+        self,
+        registry_service: RegistryService,
+        tmp_repo_structure: Path,
+    ) -> None:
+        """Test renaming a skill ensures other skills in different paths are preserved."""
+        # 1. Setup multi-directory skills
+        path1 = Path("core/GUIDE-1-2-General.md")
+        path2 = Path("platform/python/GUIDE-1-0-coding-convention-python.md")
+
+        registry_service.add_skill(path1)
+        registry_service.add_skill(path2)
+
+        # Verify both exist
+        assert len(registry_service.list_all()) == 2
+
+        # 2. Rename the python skill (in a subdirectory)
+        registry_service.rename_skill(
+            current_name="GUIDE-1-0-coding-convention-python",
+            new_basename="PythonConventions",
+            new_type="GUIDE",
+            new_major=1,
+            new_minor=1,
+        )
+
+        # 3. Verify renaming happened
+        new_name = "GUIDE-1-1-PythonConventions"
+        assert registry_service.get_skill(new_name) is not None
+
+        # 4. Verify the core skill STILL EXISTS
+        # (This would have failed with the bug, as refresh(['platform/python']) would delete core/...)
+        assert registry_service.get_skill("GUIDE-1-2-General") is not None
+        assert len(registry_service.list_all()) == 2
+
     def test_rename_skill_not_found(
         self,
         registry_service: RegistryService,

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import tkinter as tk
+import platform
+import subprocess
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import TYPE_CHECKING, Callable, cast
@@ -230,6 +232,10 @@ class ConfigPanel(ttk.Frame):
             label="Quick View",
             command=lambda: self._show_quick_view(self.available_list),
         )
+        self.available_menu.add_command(
+            label="Open with Notepad",
+            command=lambda: self._open_with_notepad(self.available_list),
+        )
         self.available_list.bind("<Button-3>", self._show_available_menu)
 
         # Context menu for selected list
@@ -237,6 +243,10 @@ class ConfigPanel(ttk.Frame):
         self.selected_menu.add_command(
             label="Quick View",
             command=lambda: self._show_quick_view(self.selected_list),
+        )
+        self.selected_menu.add_command(
+            label="Open with Notepad",
+            command=lambda: self._open_with_notepad(self.selected_list),
         )
         self.selected_list.bind("<Button-3>", self._show_selected_menu)
 
@@ -534,3 +544,43 @@ class ConfigPanel(ttk.Frame):
                 toc.append(stripped[3:].strip())
 
         return h1, summary, toc
+
+    def _open_with_notepad(self, listbox: tk.Listbox) -> None:
+        """Open the selected file with Notepad.
+
+        Args:
+             listbox: The listbox from which to get the selected item
+        """
+        indices = cast(
+            tuple[int, ...], listbox.curselection()  # type: ignore[no-untyped-call]
+        )
+        if not indices:
+            messagebox.showinfo("Open with Notepad", "No item selected.")
+            return
+
+        name = listbox.get(indices[0])
+        skill = self._registry_service.get_skill(name)
+
+        if not skill:
+            messagebox.showwarning("Open with Notepad", f"Skill '{name}' not found.")
+            return
+
+        file_path = self._registry_service.repo_root / skill.path
+        if not file_path.exists():
+            messagebox.showwarning("Open with Notepad", f"File not found: {file_path}")
+            return
+
+        try:
+            if platform.system() == "Windows":
+                subprocess.run(["notepad.exe", str(file_path)], check=False)
+            else:
+                # Fallback attempts
+                cmd = ["xdg-open", str(file_path)]
+                if platform.system() == "Darwin":
+                    cmd = ["open", str(file_path)]
+                subprocess.run(cmd, check=False)
+
+            logger.info("open_with_notepad", path=str(file_path))
+        except Exception as e:
+            logger.error("open_with_notepad_error", error=str(e))
+            messagebox.showerror("Error", f"Could not open editor: {e}")

@@ -28,6 +28,7 @@ class RenameDialog(tk.Toplevel):
         parent: tk.Misc,
         skill: Skill,
         naming_service: NamingService | None = None,
+        suggestions: list[dict[str, Any]] | None = None,
     ) -> None:
         """Initialize rename dialog.
 
@@ -35,15 +36,17 @@ class RenameDialog(tk.Toplevel):
             parent: Parent widget
             skill: Skill to rename
             naming_service: Service for filename generation (optional)
+            suggestions: List of suggestion dicts to offer
         """
         super().__init__(parent)
         self.skill = skill
         self.naming_service = naming_service
+        self.suggestions = suggestions or []
         self.result: dict[str, Any] | None = None
 
         self.title("Rename Skill")
-        self.geometry("500x350")
-        self.resizable(False, False)
+        self.geometry("500x550")
+        self.resizable(False, True)
 
         # Make modal
         self.transient(parent)  # type: ignore[call-overload]
@@ -65,7 +68,9 @@ class RenameDialog(tk.Toplevel):
         self.major_var = tk.IntVar(value=self.skill.major)
         self.minor_var = tk.IntVar(value=self.skill.minor)
         self.basename_var = tk.StringVar(value=self.skill.basename)
+        self.basename_var = tk.StringVar(value=self.skill.basename)
         self.preview_var = tk.StringVar()
+        self.suggestion_var = tk.IntVar(value=-1)  # -1 = Custom
 
         # Trace changes for live preview
         self.type_var.trace_add("write", self._update_preview)
@@ -86,9 +91,49 @@ class RenameDialog(tk.Toplevel):
             row=1, column=0, columnspan=2, sticky="w", pady=(0, 15)
         )
 
+        # Suggestions
+        if self.suggestions:
+            suggestions_frame = ttk.LabelFrame(
+                main_frame, text="Suggestions", padding="10"
+            )
+            suggestions_frame.grid(
+                row=2, column=0, columnspan=2, sticky="ew", pady=(0, 10)
+            )
+
+            for i, sugg in enumerate(self.suggestions):
+                # Construct filename preview
+                if self.naming_service:
+                    fname = self.naming_service.make_versioned(
+                        basename=sugg["basename"],
+                        major=sugg["major"],
+                        minor=sugg["minor"],
+                        type_str=sugg["type"],
+                    )
+                else:
+                    fname = f"{sugg['type']}-{sugg['major']}-{sugg['minor']}-{sugg['basename']}.md"
+
+                label = f"{sugg['source']}: {fname}"
+
+                ttk.Radiobutton(
+                    suggestions_frame,
+                    text=label,
+                    variable=self.suggestion_var,
+                    value=i,
+                    command=self._on_suggestion_change,
+                ).pack(anchor="w", padx=5, pady=2)
+
+            # Custom option
+            ttk.Radiobutton(
+                suggestions_frame,
+                text="Custom (Edit manually)",
+                variable=self.suggestion_var,
+                value=-1,
+                command=self._on_suggestion_change,
+            ).pack(anchor="w", padx=5, pady=2)
+
         # Input Fields
         inputs_frame = ttk.LabelFrame(main_frame, text="New Properties", padding="10")
-        inputs_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
+        inputs_frame.grid(row=3, column=0, columnspan=2, sticky="ew")
 
         # Type
         ttk.Label(inputs_frame, text="Type:").grid(row=0, column=0, sticky="w", pady=5)
@@ -144,18 +189,18 @@ class RenameDialog(tk.Toplevel):
 
         # Preview
         ttk.Label(main_frame, text="Preview New Filename:", font=("", 9, "bold")).grid(
-            row=3, column=0, sticky="w", pady=(20, 5)
+            row=4, column=0, sticky="w", pady=(20, 5)
         )
         ttk.Label(
             main_frame,
             textvariable=self.preview_var,
             foreground="blue",
             font=("Consolas", 10),
-        ).grid(row=4, column=0, columnspan=2, sticky="w")
+        ).grid(row=5, column=0, columnspan=2, sticky="w")
 
         # Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=5, column=0, columnspan=2, sticky="e", pady=(20, 0))
+        button_frame.grid(row=6, column=0, columnspan=2, sticky="e", pady=(20, 0))
 
         ttk.Button(button_frame, text="Cancel", command=self.destroy).pack(
             side=tk.RIGHT, padx=5
@@ -163,6 +208,20 @@ class RenameDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Rename", command=self._on_save).pack(
             side=tk.RIGHT
         )
+
+    def _on_suggestion_change(self) -> None:
+        """Handle suggestion radio button change."""
+        selection = self.suggestion_var.get()
+        if selection >= 0 and selection < len(self.suggestions):
+            sugg = self.suggestions[selection]
+            # Populate fields
+            self.type_var.set(sugg["type"])
+            self.major_var.set(sugg["major"])
+            self.minor_var.set(sugg["minor"])
+            self.basename_var.set(sugg["basename"])
+
+        # If selection is -1 (Custom), we just leave current values
+        # (user can edit them)
 
     def _update_preview(self, *args: Any) -> None:
         """Update the filename preview label."""

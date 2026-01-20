@@ -39,6 +39,7 @@ class Skill:
     is_enabled: bool = True
     status: SkillStatus = SkillStatus.VALID
     status_detail: str | None = None
+    modified_at: float = 0.0
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> Skill:
@@ -65,6 +66,7 @@ class Skill:
             is_enabled=data.get("is_enabled", True),
             status=SkillStatus(data.get("status", "valid")),
             status_detail=data.get("status_detail"),
+            modified_at=data.get("modified_at", 0.0),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -84,4 +86,5 @@ class Skill:
             "is_enabled": self.is_enabled,
             "status": self.status.value,
             "status_detail": self.status_detail,
+            "modified_at": self.modified_at,
         }

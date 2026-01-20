@@ -6,6 +6,7 @@ import os
 import platform
 import subprocess
 import tkinter as tk
+from datetime import datetime
 from tkinter import messagebox, ttk
 from typing import TYPE_CHECKING, Callable
 
@@ -49,12 +50,17 @@ class RegistryPanel(ttk.Frame):
         self._service = service
         self._status_callback = status_callback
         self._all_items: list[
-            tuple[str, str, str, str, bool, SkillStatus, str | None]
-        ] = []  # Cache for filtering
+            tuple[str, str, str, str, bool, SkillStatus, str, float]
+        ] = []  # Cache for filtering (..., modified_str, modified_ts)
 
         self._setup_ui()
         self._setup_context_menu()
         self._setup_bindings()
+
+        # Sort state (default by name ascending)
+        self._sort_col = "name"
+        self._sort_reverse = False
+
         self.refresh_list()
 
     def _setup_ui(self) -> None:
@@ -106,7 +112,7 @@ class RegistryPanel(ttk.Frame):
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
 
-        columns = ("status", "type", "name", "version", "path", "details")
+        columns = ("status", "type", "name", "version", "path", "modified")
         self.tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -119,7 +125,7 @@ class RegistryPanel(ttk.Frame):
         self.tree.column("name", width=200, minwidth=100)
         self.tree.column("version", width=60, minwidth=50, anchor=tk.CENTER)
         self.tree.column("path", width=300, minwidth=200)
-        self.tree.column("details", width=200, minwidth=100)
+        self.tree.column("modified", width=140, minwidth=120)
 
         # Configure sortable headings
         self.tree.heading(
@@ -127,10 +133,10 @@ class RegistryPanel(ttk.Frame):
             text="St",
             command=lambda: self._sort_column("status", False),
         )
-        for col in ("type", "name", "version", "path", "details"):
+        for col in ("type", "name", "version", "path", "modified"):
             self.tree.heading(
                 col,
-                text=col.capitalize(),
+                text=col.capitalize() if col != "modified" else "Last Modified",
                 anchor=tk.W if col not in ("version",) else tk.CENTER,
                 command=lambda c=col: self._sort_column(c, False),
             )
@@ -180,6 +186,10 @@ class RegistryPanel(ttk.Frame):
             label="Open with Editor",
             command=self._open_with_editor,
         )
+        self.context_menu.add_command(
+            label="Open with Notepad",
+            command=self._open_with_notepad,
+        )
 
     def _setup_bindings(self) -> None:
         """Set up event bindings."""
@@ -214,6 +224,13 @@ class RegistryPanel(ttk.Frame):
         self._all_items = []
         for skill in skills:
             version_str = f"{skill.major}.{skill.minor}"
+
+            # Format modified date
+            modified_str = ""
+            if skill.modified_at > 0:
+                dt = datetime.fromtimestamp(skill.modified_at)
+                modified_str = dt.strftime("%Y-%m-%d %H:%M")
+
             self._all_items.append(
                 (
                     skill.type,
@@ -222,12 +239,16 @@ class RegistryPanel(ttk.Frame):
                     str(skill.path),
                     skill.is_enabled,
                     skill.status,
-                    skill.status_detail,
+                    modified_str,
+                    skill.modified_at,
                 )
             )
 
         # Apply current filter
         self._apply_filter()
+
+        # Re-apply current sort
+        self._sort_column(self._sort_col, self._sort_reverse)
 
         count = len(skills)
         self._status_callback(f"Loaded {count} skills")
@@ -250,14 +271,15 @@ class RegistryPanel(ttk.Frame):
             path,
             is_enabled,
             status,
-            details,
+            modified_str,
+            modified_ts,
         ) in self._all_items:
             # Respect "Show Hidden" toggle
             if not is_enabled and not show_hidden:
                 continue
 
-            # Filter on name, path, OR details
-            search_content = f"{name} {path} {details or ''}".lower()
+            # Filter on name, path, OR modified date
+            search_content = f"{name} {path} {modified_str}".lower()
             if filter_text and filter_text not in search_content:
                 continue
 
@@ -280,7 +302,7 @@ class RegistryPanel(ttk.Frame):
                 "",
                 tk.END,
                 iid=name,
-                values=(icon, type_val, name, version, path, details or ""),
+                values=(icon, type_val, name, version, path, modified_str),
                 tags=tuple(tags),
             )
 
@@ -312,6 +334,16 @@ class RegistryPanel(ttk.Frame):
                     return [0]
 
             data.sort(key=version_key, reverse=reverse)
+        elif col == "modified":
+            # Sort by timestamp via looking up in _all_items
+            # Make a map for faster lookup {name: timestamp}
+            ts_map = {item[1]: item[7] for item in self._all_items}
+
+            def ts_key(item: tuple[str, str]) -> float:
+                # item[1] is the iid (which is name in our case)
+                return ts_map.get(item[1], 0.0)
+
+            data.sort(key=ts_key, reverse=reverse)
         else:
             # Standard string sort
             data.sort(key=lambda x: x[0].lower(), reverse=reverse)
@@ -320,8 +352,33 @@ class RegistryPanel(ttk.Frame):
         for index, (_, child) in enumerate(data):
             self.tree.move(child, "", index)
 
-        # Update heading command to toggle sort order
-        self.tree.heading(col, command=lambda: self._sort_column(col, not reverse))
+        # Update sorting state cache
+        self._sort_col = col
+        self._sort_reverse = reverse
+
+        # Update headers with sort indicators
+        for c in ("type", "name", "version", "path", "modified"):
+            # Determine base text
+            base_text = c.capitalize()
+            if c == "modified":
+                base_text = "Last Modified"
+
+            # Add arrow if this is the sorted column
+            if c == col:
+                arrow = "↓" if reverse else "↑"
+                header_text = f"{base_text} {arrow}"
+            else:
+                header_text = base_text
+
+            # Update heading
+            self.tree.heading(
+                c,
+                text=header_text,
+                command=lambda cls=c: self._sort_column(
+                    cls, not reverse if cls == col else False
+                ),
+            )
+
         order = "descending" if reverse else "ascending"
         self._status_callback(f"Sorted by {col} ({order})")
         logger.debug("column_sorted", column=col, order=order)
@@ -425,6 +482,24 @@ class RegistryPanel(ttk.Frame):
             logger.error("open_with_editor_error", error=str(e))
             messagebox.showerror("Error", f"Could not open file: {e}")
 
+    def _open_with_notepad(self) -> None:
+        """Open the selected file with Notepad."""
+        file_path = self._get_selected_file_path()
+        if not file_path:
+            messagebox.showinfo("Open with Notepad", "No item selected.")
+            return
+
+        try:
+            if platform.system() == "Windows":
+                subprocess.run(["notepad.exe", file_path], check=False)
+            else:
+                # Fallback for non-Windows (mostly for dev/testing)
+                self._open_with_editor()
+            logger.info("open_with_notepad", path=file_path)
+        except Exception as e:
+            logger.error("open_with_notepad_error", error=str(e))
+            messagebox.showerror("Error", f"Could not open Notepad: {e}")
+
     def _on_rename_click(self) -> None:
         """Handle resize/rename action."""
         selection = self.tree.selection()
@@ -436,10 +511,12 @@ class RegistryPanel(ttk.Frame):
         if not skill:
             return
 
+        suggestions = self._service.generate_rename_suggestions(skill)
         dialog = RenameDialog(
             self,
             skill,
             naming_service=self._service.naming_service,
+            suggestions=suggestions,
         )
         self.wait_window(dialog)
 
@@ -454,6 +531,23 @@ class RegistryPanel(ttk.Frame):
                 )
                 self._status_callback(f"Renamed '{name}' successfully.")
                 self.refresh_list()
+
+                # Restore selection to the renamed item
+                if self._service.naming_service:
+                    fname = self._service.naming_service.make_versioned(
+                        basename=dialog.result["basename"],
+                        major=dialog.result["major"],
+                        minor=dialog.result["minor"],
+                        type_str=dialog.result["type"],
+                    )
+                    # Skill name is valid filename stem (without extension)
+                    new_name = os.path.splitext(fname)[0]
+
+                    if self.tree.exists(new_name):
+                        self.tree.selection_set(new_name)
+                        self.tree.focus(new_name)
+                        self.tree.see(new_name)
+
             except Exception as e:
                 logger.error("rename_error", error=str(e))
                 messagebox.showerror("Rename Failed", str(e))
