@@ -60,7 +60,7 @@ class RegistryPanel(ttk.Frame):
         # Sort state (default by name ascending)
         self._sort_col = "name"
         self._sort_reverse = False
-        
+
         self.refresh_list()
 
     def _setup_ui(self) -> None:
@@ -358,19 +358,21 @@ class RegistryPanel(ttk.Frame):
             base_text = c.capitalize()
             if c == "modified":
                 base_text = "Last Modified"
-            
+
             # Add arrow if this is the sorted column
             if c == col:
                 arrow = "↓" if reverse else "↑"
                 header_text = f"{base_text} {arrow}"
             else:
                 header_text = base_text
-            
+
             # Update heading
             self.tree.heading(
-                c, 
+                c,
                 text=header_text,
-                command=lambda cls=c: self._sort_column(cls, not reverse if cls == col else False)
+                command=lambda cls=c: self._sort_column(
+                    cls, not reverse if cls == col else False
+                ),
             )
 
         order = "descending" if reverse else "ascending"
@@ -518,7 +520,7 @@ class RegistryPanel(ttk.Frame):
                     )
                     # Skill name is valid filename stem (without extension)
                     new_name = os.path.splitext(fname)[0]
-                    
+
                     if self.tree.exists(new_name):
                         self.tree.selection_set(new_name)
                         self.tree.focus(new_name)
