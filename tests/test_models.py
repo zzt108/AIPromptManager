@@ -8,15 +8,15 @@ from typing import Any
 import pytest
 
 from models.agent_config import AgentConfig
-from models.ingredient import Ingredient
+from models.skill import Skill
 from models.registry_schema import RegistrySchema
 
 
-class TestIngredient:
-    """Tests for Ingredient model."""
+class TestSkill:
+    """Tests for Skill model."""
 
     def test_from_dict_success(self) -> None:
-        """Test creating Ingredient from dictionary."""
+        """Test creating Skill from dictionary."""
         # Arrange
         data: dict[str, Any] = {
             "name": "test-guide",
@@ -29,21 +29,21 @@ class TestIngredient:
         }
 
         # Act
-        ingredient = Ingredient.from_dict(data)
+        skill = Skill.from_dict(data)
 
         # Assert
-        assert ingredient.name == "test-guide"
-        assert ingredient.path == Path("guides/test.md")
-        assert ingredient.description == "Test Guide"
-        assert ingredient.type == "GUIDE"
-        assert ingredient.major == 2
-        assert ingredient.minor == 3
-        assert ingredient.basename == "test"
+        assert skill.name == "test-guide"
+        assert skill.path == Path("guides/test.md")
+        assert skill.description == "Test Guide"
+        assert skill.type == "GUIDE"
+        assert skill.major == 2
+        assert skill.minor == 3
+        assert skill.basename == "test"
 
-    def test_to_dict_success(self, sample_ingredient: Ingredient) -> None:
-        """Test converting Ingredient to dictionary."""
+    def test_to_dict_success(self, sample_skill: Skill) -> None:
+        """Test converting Skill to dictionary."""
         # Act
-        data = sample_ingredient.to_dict()
+        data = sample_skill.to_dict()
 
         # Assert
         assert data["name"] == "python-conventions"
@@ -54,31 +54,31 @@ class TestIngredient:
         assert data["minor"] == 0
         assert data["basename"] == "coding-convention-python"
 
-    def test_round_trip_conversion(self, sample_ingredient: Ingredient) -> None:
-        """Test Ingredient survives dict conversion round trip."""
+    def test_round_trip_conversion(self, sample_skill: Skill) -> None:
+        """Test Skill survives dict conversion round trip."""
         # Act
-        data = sample_ingredient.to_dict()
-        restored = Ingredient.from_dict(data)
+        data = sample_skill.to_dict()
+        restored = Skill.from_dict(data)
 
         # Assert
-        assert restored.name == sample_ingredient.name
-        assert restored.path == sample_ingredient.path
-        assert restored.description == sample_ingredient.description
-        assert restored.type == sample_ingredient.type
-        assert restored.major == sample_ingredient.major
-        assert restored.minor == sample_ingredient.minor
-        assert restored.basename == sample_ingredient.basename
+        assert restored.name == sample_skill.name
+        assert restored.path == sample_skill.path
+        assert restored.description == sample_skill.description
+        assert restored.type == sample_skill.type
+        assert restored.major == sample_skill.major
+        assert restored.minor == sample_skill.minor
+        assert restored.basename == sample_skill.basename
 
 
 class TestRegistrySchema:
     """Tests for RegistrySchema model."""
 
-    def test_from_dict_success(self, sample_ingredient: Ingredient) -> None:
+    def test_from_dict_success(self, sample_skill: Skill) -> None:
         """Test creating RegistrySchema from dictionary."""
         # Arrange
         data: dict[str, Any] = {
             "version": "1.0",
-            "ingredients": {"test": sample_ingredient.to_dict()},
+            "ingredients": {"test": sample_skill.to_dict()},
         }
 
         # Act
@@ -86,8 +86,8 @@ class TestRegistrySchema:
 
         # Assert
         assert schema.version == "1.0"
-        assert len(schema.ingredients) == 1
-        assert "test" in schema.ingredients
+        assert len(schema.skills) == 1
+        assert "test" in schema.skills
 
     def test_from_dict_missing_version_raises_error(self) -> None:
         """Test missing version field raises ValueError."""
@@ -98,34 +98,30 @@ class TestRegistrySchema:
         with pytest.raises(ValueError, match="Missing 'version' field"):
             RegistrySchema.from_dict(data)
 
-    def test_validate_success(self, sample_ingredient: Ingredient) -> None:
+    def test_validate_success(self, sample_skill: Skill) -> None:
         """Test schema validation passes for valid data."""
         # Arrange
         schema = RegistrySchema(
-            version="1.0", ingredients={"python-conventions": sample_ingredient}
+            version="1.0", skills={"python-conventions": sample_skill}
         )
 
         # Act & Assert (should not raise)
         schema.validate()
 
-    def test_validate_name_mismatch_raises_error(
-        self, sample_ingredient: Ingredient
-    ) -> None:
-        """Test validation fails when ingredient name doesn't match key."""
+    def test_validate_name_mismatch_raises_error(self, sample_skill: Skill) -> None:
+        """Test validation fails when skill name doesn't match key."""
         # Arrange
-        schema = RegistrySchema(
-            version="1.0", ingredients={"wrong-key": sample_ingredient}
-        )
+        schema = RegistrySchema(version="1.0", skills={"wrong-key": sample_skill})
 
         # Act & Assert
         with pytest.raises(ValueError, match="name mismatch"):
             schema.validate()
 
-    def test_to_dict_success(self, sample_ingredient: Ingredient) -> None:
+    def test_to_dict_success(self, sample_skill: Skill) -> None:
         """Test converting RegistrySchema to dictionary."""
         # Arrange
         schema = RegistrySchema(
-            version="1.0", ingredients={"python-conventions": sample_ingredient}
+            version="1.0", skills={"python-conventions": sample_skill}
         )
 
         # Act
@@ -183,24 +179,22 @@ class TestAgentConfig:
         loaded_config = AgentConfig.from_file(config_path)
         assert loaded_config.ingredients == ["guide1", "guide2"]
 
-    def test_validate_success(self, sample_ingredient: Ingredient) -> None:
-        """Test validation passes when all ingredients exist in registry."""
+    def test_validate_success(self, sample_skill: Skill) -> None:
+        """Test validation passes when all skills exist in registry."""
         # Arrange
         registry = RegistrySchema(
-            version="1.0", ingredients={"python-conventions": sample_ingredient}
+            version="1.0", skills={"python-conventions": sample_skill}
         )
         config = AgentConfig(ingredients=["python-conventions"])
 
         # Act & Assert (should not raise)
         config.validate(registry)
 
-    def test_validate_missing_ingredient_raises_error(
-        self, sample_ingredient: Ingredient
-    ) -> None:
-        """Test validation fails when ingredient doesn't exist in registry."""
+    def test_validate_missing_skill_raises_error(self, sample_skill: Skill) -> None:
+        """Test validation fails when skill doesn't exist in registry."""
         # Arrange
         registry = RegistrySchema(
-            version="1.0", ingredients={"python-conventions": sample_ingredient}
+            version="1.0", skills={"python-conventions": sample_skill}
         )
         config = AgentConfig(ingredients=["nonexistent"])
 

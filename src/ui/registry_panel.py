@@ -1,4 +1,4 @@
-"""Registry panel for viewing and managing ingredients."""
+"""Registry panel for viewing and managing skills."""
 
 from __future__ import annotations
 
@@ -20,15 +20,15 @@ logger = structlog.get_logger(__name__)
 
 
 class RegistryPanel(ttk.Frame):
-    """Panel for displaying and managing registry ingredients.
+    """Panel for displaying and managing registry skills.
 
-    Shows a treeview of all ingredients with columns for
+    Shows a treeview of all skills with columns for
     Type, Name, Version, and Path. Supports filtering, visibility toggle,
     Quick View popup, and context menu actions.
 
     Attributes:
         service: Registry service for data operations
-        tree: Treeview widget for ingredient display
+        tree: Treeview widget for skill display
     """
 
     def __init__(
@@ -191,32 +191,32 @@ class RegistryPanel(ttk.Frame):
             self.context_menu.tk_popup(event.x_root, event.y_root)
 
     def refresh_list(self) -> None:
-        """Reload ingredient list from service."""
+        """Reload skill list from service."""
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Load ingredients
-        ingredients = self._service.list_all()
+        # Load skills
+        skills = self._service.list_all()
 
         # Cache for filtering
         self._all_items = []
-        for ing in ingredients:
-            version_str = f"{ing.major}.{ing.minor}"
+        for skill in skills:
+            version_str = f"{skill.major}.{skill.minor}"
             self._all_items.append(
                 (
-                    ing.type,
-                    ing.name,
+                    skill.type,
+                    skill.name,
                     version_str,
-                    str(ing.path),
-                    ing.is_enabled,
+                    str(skill.path),
+                    skill.is_enabled,
                 )
             )
 
         # Apply current filter
         self._apply_filter()
 
-        count = len(ingredients)
+        count = len(skills)
         self._status_callback(f"Loaded {count} skills")
         logger.info("registry_list_refreshed", count=count)
 
@@ -320,9 +320,9 @@ class RegistryPanel(ttk.Frame):
         if selection:
             count = len(selection)
             if count == 1:
-                logger.debug("ingredient_selected", name=selection[0])
+                logger.debug("skill_selected", name=selection[0])
             else:
-                logger.debug("ingredients_selected", count=count)
+                logger.debug("skills_selected", count=count)
 
     def _toggle_visibility(self, enabled: bool) -> None:
         """Toggle visibility for selected items.
@@ -335,7 +335,7 @@ class RegistryPanel(ttk.Frame):
             return
 
         names = list(selection)
-        updated = self._service.set_ingredients_enabled(names, enabled)
+        updated = self._service.set_skills_enabled(names, enabled)
 
         if updated > 0:
             action = "shown" if enabled else "hidden"
@@ -349,11 +349,11 @@ class RegistryPanel(ttk.Frame):
             return None
 
         name = selection[0]
-        ingredient = self._service.get_ingredient(name)
-        if not ingredient:
+        skill = self._service.get_skill(name)
+        if not skill:
             return None
 
-        return str(self._service.repo_root / ingredient.path)
+        return str(self._service.repo_root / skill.path)
 
     def _show_in_explorer(self) -> None:
         """Open file explorer at the selected file's location."""
@@ -400,20 +400,20 @@ class RegistryPanel(ttk.Frame):
             return
 
         name = selection[0]
-        ingredient = self._service.get_ingredient(name)
-        if not ingredient:
+        skill = self._service.get_skill(name)
+        if not skill:
             return
 
         dialog = RenameDialog(
             self,
-            ingredient,
+            skill,
             naming_service=self._service.naming_service,
         )
         self.wait_window(dialog)
 
         if dialog.result:
             try:
-                self._service.rename_ingredient(
+                self._service.rename_skill(
                     current_name=name,
                     new_basename=dialog.result["basename"],
                     new_type=dialog.result["type"],
@@ -427,21 +427,21 @@ class RegistryPanel(ttk.Frame):
                 messagebox.showerror("Rename Failed", str(e))
 
     def _show_quick_view(self) -> None:
-        """Show a Quick View popup for the selected ingredient."""
+        """Show a Quick View popup for the selected skill."""
         selection = self.tree.selection()
         if not selection:
             messagebox.showinfo("Quick View", "No item selected.")
             return
 
         name = selection[0]
-        ingredient = self._service.get_ingredient(name)
+        skill = self._service.get_skill(name)
 
-        if not ingredient:
-            messagebox.showwarning("Quick View", f"Ingredient '{name}' not found.")
+        if not skill:
+            messagebox.showwarning("Quick View", f"Skill '{name}' not found.")
             return
 
         # Read file content
-        file_path = self._service.repo_root / ingredient.path
+        file_path = self._service.repo_root / skill.path
         if not file_path.exists():
             messagebox.showwarning("Quick View", f"File not found: {file_path}")
             return

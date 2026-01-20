@@ -52,7 +52,7 @@ class RegistryRepository:
         logger.info(
             "registry_loaded",
             path=str(path),
-            ingredient_count=len(registry.ingredients),
+            skill_count=len(registry.skills),
         )
         return registry
 
@@ -77,5 +77,5 @@ class RegistryRepository:
         logger.info(
             "registry_saved",
             path=str(path),
-            ingredient_count=len(registry.ingredients),
+            skill_count=len(registry.skills),
         )

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from models.ingredient import Ingredient
+from models.skill import Skill
 from models.registry_schema import RegistrySchema
 from repositories.registry_repository import RegistryRepository
 from services.registry_service import RegistryService
@@ -89,51 +89,49 @@ def registry_service(
     )
 
 
-class TestAddIngredient:
-    """Tests for add_ingredient method."""
+class TestAddSkill:
+    """Tests for add_skill method."""
 
-    def test_add_ingredient_success(
+    def test_add_skill_success(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test adding a valid ingredient extracts metadata correctly."""
+        """Test adding a valid Skill extracts metadata correctly."""
         path = Path("core/GUIDE-1-2-General.md")
 
-        ingredient = registry_service.add_ingredient(path)
+        skill = registry_service.add_skill(path)
 
-        assert ingredient.name == "GUIDE-1-2-General"
-        assert ingredient.path == path
-        assert ingredient.type == "GUIDE"
-        assert ingredient.major == 1
-        assert ingredient.minor == 2
-        assert ingredient.basename == "General"
-        assert ingredient.description == "General Coding Conventions"
+        assert skill.name == "GUIDE-1-2-General"
+        assert skill.path == path
+        assert skill.type == "GUIDE"
+        assert skill.major == 1
+        assert skill.minor == 2
+        assert skill.basename == "General"
+        assert skill.description == "General Coding Conventions"
 
-    def test_add_ingredient_with_custom_description(
+    def test_add_skill_with_custom_description(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test adding ingredient with explicit description."""
+        """Test adding Skill with explicit description."""
         path = Path("core/GUIDE-1-2-General.md")
 
-        ingredient = registry_service.add_ingredient(
-            path, description="Custom Description"
-        )
+        skill = registry_service.add_skill(path, description="Custom Description")
 
-        assert ingredient.description == "Custom Description"
+        assert skill.description == "Custom Description"
 
-    def test_add_ingredient_duplicate_error(
+    def test_add_skill_duplicate_error(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test adding duplicate ingredient raises ValueError."""
+        """Test adding duplicate Skill raises ValueError."""
         path = Path("core/GUIDE-1-2-General.md")
-        registry_service.add_ingredient(path)
+        registry_service.add_skill(path)
 
         with pytest.raises(ValueError, match="already exists"):
-            registry_service.add_ingredient(path)
+            registry_service.add_skill(path)
 
-    def test_add_ingredient_file_not_found(
+    def test_add_skill_file_not_found(
         self,
         registry_service: RegistryService,
     ) -> None:
@@ -141,57 +139,57 @@ class TestAddIngredient:
         path = Path("core/NONEXISTENT.md")
 
         with pytest.raises(FileNotFoundError):
-            registry_service.add_ingredient(path)
+            registry_service.add_skill(path)
 
 
-class TestRemoveIngredient:
-    """Tests for remove_ingredient method."""
+class TestRemoveSkill:
+    """Tests for remove_skill method."""
 
-    def test_remove_ingredient_success(
+    def test_remove_skill_success(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test removing existing ingredient."""
+        """Test removing existing Skill."""
         path = Path("core/GUIDE-1-2-General.md")
-        registry_service.add_ingredient(path)
+        registry_service.add_skill(path)
 
-        registry_service.remove_ingredient("GUIDE-1-2-General")
+        registry_service.remove_skill("GUIDE-1-2-General")
 
-        assert registry_service.get_ingredient("GUIDE-1-2-General") is None
+        assert registry_service.get_skill("GUIDE-1-2-General") is None
 
-    def test_remove_ingredient_not_found(
+    def test_remove_skill_not_found(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test removing non-existent ingredient raises KeyError."""
+        """Test removing non-existent Skill raises KeyError."""
         with pytest.raises(KeyError, match="not found"):
-            registry_service.remove_ingredient("nonexistent")
+            registry_service.remove_skill("nonexistent")
 
 
-class TestGetIngredient:
-    """Tests for get_ingredient method."""
+class TestGetSkill:
+    """Tests for get_skill method."""
 
-    def test_get_ingredient_found(
+    def test_get_skill_found(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test retrieving existing ingredient."""
+        """Test retrieving existing Skill."""
         path = Path("core/GUIDE-1-2-General.md")
-        registry_service.add_ingredient(path)
+        registry_service.add_skill(path)
 
-        ingredient = registry_service.get_ingredient("GUIDE-1-2-General")
+        skill = registry_service.get_skill("GUIDE-1-2-General")
 
-        assert ingredient is not None
-        assert ingredient.name == "GUIDE-1-2-General"
+        assert skill is not None
+        assert skill.name == "GUIDE-1-2-General"
 
-    def test_get_ingredient_not_found(
+    def test_get_skill_not_found(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test retrieving non-existent ingredient returns None."""
-        ingredient = registry_service.get_ingredient("nonexistent")
+        """Test retrieving non-existent Skill returns None."""
+        skill = registry_service.get_skill("nonexistent")
 
-        assert ingredient is None
+        assert skill is None
 
 
 class TestListAll:
@@ -202,63 +200,63 @@ class TestListAll:
         registry_service: RegistryService,
     ) -> None:
         """Test listing empty registry."""
-        ingredients = registry_service.list_all()
+        Skills = registry_service.list_all()
 
-        assert ingredients == []
+        assert Skills == []
 
     def test_list_all_multiple(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test listing multiple ingredients sorted by name."""
-        registry_service.add_ingredient(Path("core/GUIDE-1-2-General.md"))
-        registry_service.add_ingredient(
+        """Test listing multiple Skills sorted by name."""
+        registry_service.add_skill(Path("core/GUIDE-1-2-General.md"))
+        registry_service.add_skill(
             Path("platform/python/GUIDE-1-0-coding-convention-python.md")
         )
 
-        ingredients = registry_service.list_all()
+        Skills = registry_service.list_all()
 
-        assert len(ingredients) == 2
+        assert len(Skills) == 2
         # Should be sorted alphabetically
-        assert ingredients[0].name == "GUIDE-1-0-coding-convention-python"
-        assert ingredients[1].name == "GUIDE-1-2-General"
+        assert Skills[0].name == "GUIDE-1-0-coding-convention-python"
+        assert Skills[1].name == "GUIDE-1-2-General"
 
 
-class TestUpdateIngredientPath:
-    """Tests for update_ingredient_path method."""
+class TestUpdateSkillPath:
+    """Tests for update_skill_path method."""
 
-    def test_update_ingredient_path_success(
+    def test_update_skill_path_success(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test updating ingredient path."""
+        """Test updating Skill path."""
         old_path = Path("core/GUIDE-1-2-General.md")
         new_path = Path("core/GUIDE-1-3-General.md")
-        registry_service.add_ingredient(old_path)
+        registry_service.add_skill(old_path)
 
-        registry_service.update_ingredient_path("GUIDE-1-2-General", new_path)
+        registry_service.update_skill_path("GUIDE-1-2-General", new_path)
 
-        ingredient = registry_service.get_ingredient("GUIDE-1-2-General")
-        assert ingredient is not None
-        assert ingredient.path == new_path
+        skill = registry_service.get_skill("GUIDE-1-2-General")
+        assert skill is not None
+        assert skill.path == new_path
 
-    def test_update_ingredient_path_not_found(
+    def test_update_skill_path_not_found(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test updating path for non-existent ingredient."""
+        """Test updating path for non-existent Skill."""
         with pytest.raises(KeyError, match="not found"):
-            registry_service.update_ingredient_path("nonexistent", Path("some/path.md"))
+            registry_service.update_skill_path("nonexistent", Path("some/path.md"))
 
-    def test_update_ingredient_path_new_path_missing(
+    def test_update_skill_path_new_path_missing(
         self,
         registry_service: RegistryService,
     ) -> None:
         """Test updating to non-existent path raises FileNotFoundError."""
-        registry_service.add_ingredient(Path("core/GUIDE-1-2-General.md"))
+        registry_service.add_skill(Path("core/GUIDE-1-2-General.md"))
 
         with pytest.raises(FileNotFoundError):
-            registry_service.update_ingredient_path(
+            registry_service.update_skill_path(
                 "GUIDE-1-2-General", Path("missing/path.md")
             )
 
@@ -396,9 +394,9 @@ class TestRefreshRegistry:
         tmp_repo_structure: Path,
     ) -> None:
         """Test refresh removes files that were deleted from disk."""
-        # 1. Add an ingredient initially
+        # 1. Add an Skill initially
         path = Path("core/GUIDE-1-2-General.md")
-        registry_service.add_ingredient(path)
+        registry_service.add_skill(path)
 
         # 2. Delete the file from disk
         (tmp_repo_structure / path).unlink()
@@ -408,21 +406,21 @@ class TestRefreshRegistry:
 
         # 4. Verify removal
         assert result.removed == 1
-        assert registry_service.get_ingredient("GUIDE-1-2-General") is None
+        assert registry_service.get_skill("GUIDE-1-2-General") is None
 
 
 class TestVersionLookup:
     """Tests for version lookup methods."""
 
-    def test_find_ingredients_by_basename(
+    def test_find_skills_by_basename(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test finding all versions of an ingredient."""
-        registry_service.add_ingredient(Path("core/GUIDE-1-2-General.md"))
-        registry_service.add_ingredient(Path("core/GUIDE-1-3-General.md"))
+        """Test finding all versions of an Skill."""
+        registry_service.add_skill(Path("core/GUIDE-1-2-General.md"))
+        registry_service.add_skill(Path("core/GUIDE-1-3-General.md"))
 
-        matches = registry_service.find_ingredients_by_basename("General")
+        matches = registry_service.find_skills_by_basename("General")
 
         assert len(matches) == 2
         # Should be sorted by version descending
@@ -433,9 +431,9 @@ class TestVersionLookup:
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test getting latest version of an ingredient."""
-        registry_service.add_ingredient(Path("core/GUIDE-1-2-General.md"))
-        registry_service.add_ingredient(Path("core/GUIDE-1-3-General.md"))
+        """Test getting latest version of an Skill."""
+        registry_service.add_skill(Path("core/GUIDE-1-2-General.md"))
+        registry_service.add_skill(Path("core/GUIDE-1-3-General.md"))
 
         latest = registry_service.get_latest_version("General")
 
@@ -452,21 +450,21 @@ class TestVersionLookup:
         assert latest is None
 
 
-class TestRenameIngredient:
-    """Tests for rename_ingredient method."""
+class TestRenameSkill:
+    """Tests for rename_skill method."""
 
-    def test_rename_ingredient_success(
+    def test_rename_skill_success(
         self,
         registry_service: RegistryService,
         tmp_repo_structure: Path,
     ) -> None:
-        """Test renaming an ingredient successfully."""
-        # 1. Setup initial ingredient
+        """Test renaming an Skill successfully."""
+        # 1. Setup initial Skill
         old_path = Path("core/GUIDE-1-2-General.md")
-        registry_service.add_ingredient(old_path)
+        registry_service.add_skill(old_path)
 
         # 2. Rename it
-        registry_service.rename_ingredient(
+        registry_service.rename_skill(
             current_name="GUIDE-1-2-General",
             new_basename="RenamedGeneral",
             new_type="GUIDE",
@@ -480,20 +478,20 @@ class TestRenameIngredient:
         assert new_path.exists()
 
         # 4. Verify registry updated
-        assert registry_service.get_ingredient("GUIDE-1-2-General") is None
-        new_ing = registry_service.get_ingredient("GUIDE-1-3-RenamedGeneral")
+        assert registry_service.get_skill("GUIDE-1-2-General") is None
+        new_ing = registry_service.get_skill("GUIDE-1-3-RenamedGeneral")
         assert new_ing is not None
         assert new_ing.basename == "RenamedGeneral"
 
-    def test_rename_ingredient_not_found(
+    def test_rename_skill_not_found(
         self,
         registry_service: RegistryService,
     ) -> None:
-        """Test renaming non-existent ingredient raises KeyError."""
+        """Test renaming non-existent Skill raises KeyError."""
         with pytest.raises(KeyError):
-            registry_service.rename_ingredient("nonexistent", "New", "GUIDE", 1, 0)
+            registry_service.rename_skill("nonexistent", "New", "GUIDE", 1, 0)
 
-    def test_rename_ingredient_collision(
+    def test_rename_skill_collision(
         self,
         registry_service: RegistryService,
         tmp_repo_structure: Path,
@@ -504,12 +502,12 @@ class TestRenameIngredient:
         # Create second file first
         (tmp_repo_structure / path2).write_text("Target", encoding="utf-8")
 
-        registry_service.add_ingredient(path1)
-        registry_service.add_ingredient(path2)
+        registry_service.add_skill(path1)
+        registry_service.add_skill(path2)
 
         # Try to rename first to match second
         with pytest.raises(ValueError, match="already exists"):
-            registry_service.rename_ingredient(
+            registry_service.rename_skill(
                 current_name="GUIDE-1-2-General",
                 new_basename="Target",
                 new_type="GUIDE",
@@ -517,17 +515,17 @@ class TestRenameIngredient:
                 new_minor=3,
             )
 
-    def test_rename_ingredient_same_name_noop(
+    def test_rename_skill_same_name_noop(
         self,
         registry_service: RegistryService,
         tmp_repo_structure: Path,
     ) -> None:
         """Test renaming to same name works (no-op on file, refresh registry)."""
         path = Path("core/GUIDE-1-2-General.md")
-        registry_service.add_ingredient(path)
+        registry_service.add_skill(path)
 
         # Rename to same
-        registry_service.rename_ingredient(
+        registry_service.rename_skill(
             current_name="GUIDE-1-2-General",
             new_basename="General",
             new_type="GUIDE",
@@ -536,4 +534,4 @@ class TestRenameIngredient:
         )
 
         assert (tmp_repo_structure / path).exists()
-        assert registry_service.get_ingredient("GUIDE-1-2-General") is not None
+        assert registry_service.get_skill("GUIDE-1-2-General") is not None

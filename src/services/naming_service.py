@@ -95,12 +95,12 @@ class NamingService:
         raise ValueError(f"Filename doesn't match expected pattern: {filename}")
 
     def extract_metadata(self, path: Path) -> tuple[str, int, int, str]:
-        """Extract metadata from ingredient filename.
+        """Extract metadata from skill filename.
 
         Compatible signature with original RegistryService._extract_metadata.
 
         Args:
-            path: Path to the ingredient file
+            path: Path to the skill file
 
         Returns:
             Tuple of (type, major, minor, basename)

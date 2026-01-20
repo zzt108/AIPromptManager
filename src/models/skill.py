@@ -1,4 +1,4 @@
-"""Ingredient model for AI Prompt Manager registry."""
+"""Skill model for AI Prompt Manager registry."""
 
 from __future__ import annotations
 
@@ -8,21 +8,21 @@ from typing import Any
 
 
 @dataclass
-class Ingredient:
-    """Represents a single ingredient in the registry.
+class Skill:
+    """Represents a single skill in the registry.
 
-    An ingredient is a reusable asset (GUIDE, SPACE, PROMPT, etc.) tracked
+    A skill is a reusable asset (GUIDE, SPACE, PROMPT, etc.) tracked
     in the registry.json file.
 
     Attributes:
-        name: Unique identifier for the ingredient
-        path: Relative path to the ingredient file from repo root
+        name: Unique identifier for the skill
+        path: Relative path to the skill file from repo root
         description: Auto-extracted from H1 heading in markdown
         type: Category (GUIDE, SPACE, PROMPT, etc.)
         major: Major version number
         minor: Minor version number
         basename: Core name without version suffix
-        is_enabled: Whether the ingredient is visible in Profession Designer
+        is_enabled: Whether the skill is visible in Profession Designer
     """
 
     name: str
@@ -35,20 +35,20 @@ class Ingredient:
     is_enabled: bool = True
 
     @staticmethod
-    def from_dict(data: dict[str, Any]) -> Ingredient:
-        """Create Ingredient instance from dictionary.
+    def from_dict(data: dict[str, Any]) -> Skill:
+        """Create Skill instance from dictionary.
 
         Args:
-            data: Dictionary containing ingredient data
+            data: Dictionary containing skill data
 
         Returns:
-            Ingredient instance
+            Skill instance
 
         Raises:
             KeyError: If required field is missing
             TypeError: If field type is incorrect
         """
-        return Ingredient(
+        return Skill(
             name=data["name"],
             path=Path(data["path"]),
             description=data["description"],
@@ -60,7 +60,7 @@ class Ingredient:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert ingredient to dictionary.
+        """Convert skill to dictionary.
 
         Returns:
             Dictionary representation suitable for JSON serialization

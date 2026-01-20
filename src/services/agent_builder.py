@@ -29,7 +29,7 @@ _VERSIONED_TO_VERSIONLESS = re.compile(
 class AgentBuilder:
     """Builds .agent folders from configuration files.
 
-    Copies ingredients from registry to output directory with
+    Copies skills from registry to output directory with
     version-less filenames for cross-reference compatibility.
 
     Attributes:
@@ -46,7 +46,7 @@ class AgentBuilder:
         """Initialize agent builder.
 
         Args:
-            registry_service: Service for looking up ingredients
+            registry_service: Service for looking up skills
             repo_root: Root path of the repository
             naming_service: Optional NamingService for filename conversions.
                            If None, uses legacy hardcoded pattern.
@@ -62,7 +62,7 @@ class AgentBuilder:
     ) -> list[SyncTask]:
         """Get a list of sync tasks for a build operation.
 
-        Scans the config file and compares each ingredient with the
+        Scans the config file and compares each skill with the
         target directory to determine sync status.
 
         Args:
@@ -70,7 +70,7 @@ class AgentBuilder:
             output_path: Path to output directory (.agent/rules)
 
         Returns:
-            List of SyncTask objects, one per ingredient
+            List of SyncTask objects, one per skill
 
         Raises:
             FileNotFoundError: If config file doesn't exist
@@ -78,19 +78,19 @@ class AgentBuilder:
         config = AgentConfig.from_file(config_path)
         tasks: list[SyncTask] = []
 
-        for ingredient_name in config.ingredients:
-            ingredient = self.registry_service.get_ingredient(ingredient_name)
+        for skill_name in config.ingredients:
+            skill = self.registry_service.get_skill(skill_name)
 
-            if ingredient is None:
-                # Create a placeholder task for missing ingredient
+            if skill is None:
+                # Create a placeholder task for missing skill
                 logger.warning(
-                    "ingredient_not_found",
-                    ingredient=ingredient_name,
+                    "skill_not_found",
+                    skill=skill_name,
                 )
                 continue
 
-            source_path = self.repo_root / ingredient.path
-            target_filename = self._make_versionless_name(ingredient.path.name)
+            source_path = self.repo_root / skill.path
+            target_filename = self._make_versionless_name(skill.path.name)
             target_path = output_path / target_filename
 
             # Determine sync status
@@ -100,7 +100,7 @@ class AgentBuilder:
 
             tasks.append(
                 SyncTask(
-                    ingredient=ingredient,
+                    skill=skill,
                     source_path=source_path,
                     target_path=target_path,
                     source_mtime=source_mtime,
@@ -170,7 +170,7 @@ class AgentBuilder:
         if action == SyncAction.SKIP:
             logger.debug(
                 "task_skipped",
-                ingredient=task.ingredient.name,
+                skill=task.skill.name,
             )
             return False
 
@@ -216,7 +216,7 @@ class AgentBuilder:
 
         Raises:
             FileNotFoundError: If config file doesn't exist
-            ValueError: If any ingredient reference is invalid
+            ValueError: If any skill reference is invalid
         """
         result = BuildResult()
 
@@ -227,19 +227,17 @@ class AgentBuilder:
             "build_agent_started",
             config=str(config_path),
             output=str(output_path),
-            ingredient_count=len(config.ingredients),
+            skill_count=len(config.ingredients),
         )
 
-        # Verify all ingredients exist
-        missing_ingredients = []
+        # Verify all skills exist
+        missing_skills = []
         for name in config.ingredients:
-            if not self.registry_service.get_ingredient(name):
-                missing_ingredients.append(name)
+            if not self.registry_service.get_skill(name):
+                missing_skills.append(name)
 
-        if missing_ingredients:
-            raise ValueError(
-                f"Missing ingredients in registry: {', '.join(missing_ingredients)}"
-            )
+        if missing_skills:
+            raise ValueError(f"Missing skills in registry: {', '.join(missing_skills)}")
 
         # Check for newer versions and add warnings
         version_updates = self.check_newer_versions(config)
@@ -252,7 +250,7 @@ class AgentBuilder:
         # Process each task
         for task in tasks:
             if task.status == SyncStatus.MISSING_SOURCE:
-                result.warnings.append(f"Missing source: {task.ingredient.name}")
+                result.warnings.append(f"Missing source: {task.skill.name}")
                 continue
 
             if task.status in (
@@ -277,37 +275,37 @@ class AgentBuilder:
         self,
         config: AgentConfig,
     ) -> list[VersionUpdate]:
-        """Check if newer versions exist for any ingredients.
+        """Check if newer versions exist for any skills.
 
-        For each ingredient in the config, checks if a newer version
+        For each skill in the config, checks if a newer version
         with the same basename exists in the registry.
 
         Args:
             config: Agent configuration to check
 
         Returns:
-            List of VersionUpdate objects for ingredients with updates
+            List of VersionUpdate objects for skills with updates
         """
         updates: list[VersionUpdate] = []
 
-        for ingredient_name in config.ingredients:
-            ingredient = self.registry_service.get_ingredient(ingredient_name)
-            if ingredient is None:
+        for skill_name in config.ingredients:
+            skill = self.registry_service.get_skill(skill_name)
+            if skill is None:
                 continue
 
             # Find latest version with same basename
-            latest = self.registry_service.get_latest_version(ingredient.basename)
+            latest = self.registry_service.get_latest_version(skill.basename)
 
             if latest is None:
                 continue
 
             # Check if there's a newer version
-            if (latest.major, latest.minor) > (ingredient.major, ingredient.minor):
+            if (latest.major, latest.minor) > (skill.major, skill.minor):
                 updates.append(
                     VersionUpdate(
-                        ingredient_name=ingredient_name,
-                        current_major=ingredient.major,
-                        current_minor=ingredient.minor,
+                        ingredient_name=skill_name,
+                        current_major=skill.major,
+                        current_minor=skill.minor,
                         latest_major=latest.major,
                         latest_minor=latest.minor,
                         latest_name=latest.name,
@@ -345,7 +343,7 @@ class AgentBuilder:
         config_path: Path,
         output_path: Path,
     ) -> dict[str, str]:
-        """Get sync status for each ingredient.
+        """Get sync status for each skill.
 
         Compares timestamps between source and target files.
 
@@ -354,8 +352,8 @@ class AgentBuilder:
             output_path: Output directory
 
         Returns:
-            Dictionary mapping ingredient name to status
+            Dictionary mapping skill name to status
             ('in_sync', 'source_newer', 'target_newer', 'not_deployed')
         """
         tasks = self.get_sync_tasks(config_path, output_path)
-        return {task.ingredient.name: task.status.name.lower() for task in tasks}
+        return {task.skill.name: task.status.name.lower() for task in tasks}

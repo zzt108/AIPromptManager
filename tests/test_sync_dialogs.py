@@ -63,14 +63,14 @@ class MockToplevel:
         pass
 
 
-from models.ingredient import Ingredient
+from models.skill import Skill
 from models.sync_types import SyncAction, SyncStatus, SyncTask
 
 
 @pytest.fixture
 def mock_task() -> SyncTask:
     return SyncTask(
-        ingredient=Ingredient(
+        skill=Skill(
             name="test",
             path=Path("test.md"),
             description="desc",

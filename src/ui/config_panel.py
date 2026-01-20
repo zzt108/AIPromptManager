@@ -60,13 +60,13 @@ class ToolTip:
 class ConfigPanel(ttk.Frame):
     """Panel for creating and editing agent configurations.
 
-    Provides a dual-listbox interface to select ingredients from the registry
+    Provides a dual-listbox interface to select skills from the registry
     and arrange them into a configuration.
 
     Attributes:
-        registry_service: Service for accessing available ingredients
-        available_list: Listbox showing registry ingredients
-        selected_list: Listbox showing selected ingredients
+        registry_service: Service for accessing available skills
+        available_list: Listbox showing registry skills
+        selected_list: Listbox showing selected skills
     """
 
     def __init__(
@@ -86,7 +86,7 @@ class ConfigPanel(ttk.Frame):
         self._registry_service = registry_service
         self._set_status = status_callback
         self._current_config_path: Path | None = None
-        self._all_ingredients: list[str] = []  # Cache for filtering
+        self._all_skills: list[str] = []  # Cache for filtering
 
         self._setup_ui()
         self._setup_bindings()
@@ -256,15 +256,15 @@ class ConfigPanel(ttk.Frame):
         self.selected_menu.tk_popup(event.x_root, event.y_root)
 
     def refresh(self) -> None:
-        """Refresh the available ingredients list."""
+        """Refresh the available skills list."""
         self._refresh_available_list()
 
     def _refresh_available_list(self) -> None:
         """Populate available list from registry (enabled items only)."""
         self.available_list.delete(0, tk.END)
-        ingredients = self._registry_service.list_enabled()
-        self._all_ingredients = [ing.name for ing in ingredients]
-        for name in self._all_ingredients:
+        skills = self._registry_service.list_enabled()
+        self._all_skills = [skill.name for skill in skills]
+        for name in self._all_skills:
             self.available_list.insert(tk.END, name)
 
     def _filter_available_list(self) -> None:
@@ -272,7 +272,7 @@ class ConfigPanel(ttk.Frame):
         filter_text = self.filter_var.get().lower()
         self.available_list.delete(0, tk.END)
 
-        for name in self._all_ingredients:
+        for name in self._all_skills:
             if filter_text in name.lower():
                 self.available_list.insert(tk.END, name)
 
@@ -404,14 +404,14 @@ class ConfigPanel(ttk.Frame):
         Args:
             path: Path to save agent.config.json
         """
-        ingredients = list(self.selected_list.get(0, tk.END))
-        config = AgentConfig(ingredients=ingredients)
+        skills = list(self.selected_list.get(0, tk.END))
+        config = AgentConfig(ingredients=skills)
         config.to_file(path)
         self._current_config_path = path
         self._set_status(f"Saved profession to {path.name}")
 
     def _show_quick_view(self, listbox: tk.Listbox) -> None:
-        """Show a Quick View popup for the selected ingredient.
+        """Show a Quick View popup for the selected skill.
 
         Args:
             listbox: The listbox from which to get the selected item
@@ -424,14 +424,14 @@ class ConfigPanel(ttk.Frame):
             return
 
         name = listbox.get(indices[0])
-        ingredient = self._registry_service.get_ingredient(name)
+        skill = self._registry_service.get_skill(name)
 
-        if not ingredient:
-            messagebox.showwarning("Quick View", f"Ingredient '{name}' not found.")
+        if not skill:
+            messagebox.showwarning("Quick View", f"Skill '{name}' not found.")
             return
 
         # Read file content
-        file_path = self._registry_service.repo_root / ingredient.path
+        file_path = self._registry_service.repo_root / skill.path
         if not file_path.exists():
             messagebox.showwarning("Quick View", f"File not found: {file_path}")
             return

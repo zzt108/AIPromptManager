@@ -164,7 +164,7 @@ class MainWindow(tk.Tk):
         messagebox.showinfo(
             "About",
             "AI Prompt Manager\n\n"
-            "Manage AI prompt ingredients and build agent configurations.\n\n"
+            "Manage AI prompt skills and build agent configurations.\n\n"
             "Version 0.1.0",
         )
 

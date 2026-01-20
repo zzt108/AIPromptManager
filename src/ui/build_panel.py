@@ -212,7 +212,7 @@ class BuildPanel(ttk.Frame):
                 action = SyncAction.SKIP
 
                 if task.status == SyncStatus.MISSING_SOURCE:
-                    msg = f"❌ Missing source: {task.ingredient.name} ({task.source_path})"
+                    msg = f"❌ Missing source: {task.skill.name} ({task.source_path})"
                     self._log(msg)
                     result.warnings.append(msg)
                     continue

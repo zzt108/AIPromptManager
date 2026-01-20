@@ -1,4 +1,4 @@
-"""Dialog for renaming ingredients."""
+"""Dialog for renaming skills."""
 
 from __future__ import annotations
 
@@ -6,14 +6,14 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import TYPE_CHECKING, Any
 
-from models.ingredient import Ingredient
+from models.skill import Skill
 
 if TYPE_CHECKING:
     from services.naming_service import NamingService
 
 
 class RenameDialog(tk.Toplevel):
-    """Modal dialog for renaming an ingredient.
+    """Modal dialog for renaming a skill.
 
     Allows changing Type, Version, and Basename with live preview
     of the resulting filename based on naming conventions.
@@ -26,22 +26,22 @@ class RenameDialog(tk.Toplevel):
     def __init__(
         self,
         parent: tk.Misc,
-        ingredient: Ingredient,
+        skill: Skill,
         naming_service: NamingService | None = None,
     ) -> None:
         """Initialize rename dialog.
 
         Args:
             parent: Parent widget
-            ingredient: Ingredient to rename
+            skill: Skill to rename
             naming_service: Service for filename generation (optional)
         """
         super().__init__(parent)
-        self.ingredient = ingredient
+        self.skill = skill
         self.naming_service = naming_service
         self.result: dict[str, Any] | None = None
 
-        self.title("Rename Ingredient")
+        self.title("Rename Skill")
         self.geometry("500x350")
         self.resizable(False, False)
 
@@ -61,10 +61,10 @@ class RenameDialog(tk.Toplevel):
 
     def _init_vars(self) -> None:
         """Initialize tracking variables."""
-        self.type_var = tk.StringVar(value=self.ingredient.type)
-        self.major_var = tk.IntVar(value=self.ingredient.major)
-        self.minor_var = tk.IntVar(value=self.ingredient.minor)
-        self.basename_var = tk.StringVar(value=self.ingredient.basename)
+        self.type_var = tk.StringVar(value=self.skill.type)
+        self.major_var = tk.IntVar(value=self.skill.major)
+        self.minor_var = tk.IntVar(value=self.skill.minor)
+        self.basename_var = tk.StringVar(value=self.skill.basename)
         self.preview_var = tk.StringVar()
 
         # Trace changes for live preview
@@ -82,7 +82,7 @@ class RenameDialog(tk.Toplevel):
         ttk.Label(main_frame, text="Current Filename:", font=("", 9, "bold")).grid(
             row=0, column=0, sticky="w", pady=(0, 5)
         )
-        ttk.Label(main_frame, text=self.ingredient.path.name).grid(
+        ttk.Label(main_frame, text=self.skill.path.name).grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(0, 15)
         )
 

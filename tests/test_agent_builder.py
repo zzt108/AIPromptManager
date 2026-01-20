@@ -15,8 +15,8 @@ from services.registry_service import RegistryService
 
 
 @pytest.fixture
-def tmp_repo_with_ingredients(tmp_path: Path) -> Path:
-    """Create a temporary repository with ingredient files.
+def tmp_repo_with_skills(tmp_path: Path) -> Path:
+    """Create a temporary repository with skill files.
 
     Args:
         tmp_path: pytest temporary directory
@@ -49,7 +49,7 @@ def tmp_repo_with_ingredients(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def populated_registry_path(tmp_path: Path) -> Path:
-    """Create a registry.json with test ingredients.
+    """Create a registry.json with test skills.
 
     Args:
         tmp_path: pytest temporary directory
@@ -96,13 +96,13 @@ def populated_registry_path(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def agent_builder(
-    tmp_repo_with_ingredients: Path,
+    tmp_repo_with_skills: Path,
     populated_registry_path: Path,
 ) -> AgentBuilder:
     """Create an AgentBuilder instance for testing.
 
     Args:
-        tmp_repo_with_ingredients: Temporary repository with test files
+        tmp_repo_with_skills: Temporary repository with test files
         populated_registry_path: Path to populated registry
 
     Returns:
@@ -112,11 +112,11 @@ def agent_builder(
     registry_service = RegistryService(
         registry_repository=repo,
         registry_path=populated_registry_path,
-        repo_root=tmp_repo_with_ingredients,
+        repo_root=tmp_repo_with_skills,
     )
     return AgentBuilder(
         registry_service=registry_service,
-        repo_root=tmp_repo_with_ingredients,
+        repo_root=tmp_repo_with_skills,
     )
 
 
@@ -189,19 +189,19 @@ class TestBuildAgent:
         # Versioned names should not exist
         assert not (output_path / "GUIDE-1-2-General.md").exists()
 
-    def test_build_agent_missing_ingredient(
+    def test_build_agent_missing_skill(
         self,
         agent_builder: AgentBuilder,
         tmp_path: Path,
     ) -> None:
-        """Test build with missing ingredient raises ValueError."""
+        """Test build with missing skill raises ValueError."""
         config_path = tmp_path / "bad_config.json"
         config_data = {"ingredients": ["NONEXISTENT"]}
         config_path.write_text(json.dumps(config_data), encoding="utf-8")
 
         output_path = tmp_path / "output"
 
-        with pytest.raises(ValueError, match="Missing ingredients"):
+        with pytest.raises(ValueError, match="Missing skills"):
             agent_builder.build_agent(config_path, output_path)
 
     def test_build_agent_skips_unchanged(

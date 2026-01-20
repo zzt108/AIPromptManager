@@ -8,17 +8,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from models.ingredient import Ingredient
+from models.skill import Skill
 from ui.registry_panel import RegistryPanel
 
 
-def make_ingredient(name: str, ing_type: str = "GUIDE") -> Ingredient:
-    """Create a test ingredient."""
-    return Ingredient(
+def make_skill(name: str, skill_type: str = "GUIDE") -> Skill:
+    """Create a test Skill."""
+    return Skill(
         name=name,
         path=Path(f"core/{name}.md"),
         description=f"Test {name}",
-        type=ing_type,
+        type=skill_type,
         major=1,
         minor=0,
         basename=name.split("-")[-1] if "-" in name else name,
@@ -53,14 +53,14 @@ class TestRegistryPanel:
         mock_service.list_all.assert_called_once()
 
     def test_refresh_list_populates_treeview(self, tk_root: tk.Tk) -> None:
-        """Test that refresh_list populates treeview with ingredients."""
+        """Test that refresh_list populates treeview with skills."""
         mock_service = MagicMock()
 
-        test_ingredients = [
-            make_ingredient("GUIDE-1-0-General", "GUIDE"),
-            make_ingredient("SPACE-260116-Python", "SPACE"),
+        test_skills = [
+            make_skill("GUIDE-1-0-General", "GUIDE"),
+            make_skill("SPACE-260116-Python", "SPACE"),
         ]
-        mock_service.list_all.return_value = test_ingredients
+        mock_service.list_all.return_value = test_skills
 
         panel = RegistryPanel(tk_root, mock_service, lambda msg: None)
 
@@ -74,13 +74,13 @@ class TestRegistryPanel:
         assert first_values[1] == "GUIDE-1-0-General"  # Name
 
     def test_status_callback_called_after_refresh(self, tk_root: tk.Tk) -> None:
-        """Test that status callback is invoked with ingredient count."""
+        """Test that status callback is invoked with skill count."""
         mock_service = MagicMock()
 
-        test_ingredients = [
-            make_ingredient("GUIDE-1-0-General", "GUIDE"),
+        test_skills = [
+            make_skill("GUIDE-1-0-General", "GUIDE"),
         ]
-        mock_service.list_all.return_value = test_ingredients
+        mock_service.list_all.return_value = test_skills
 
         status_messages: list[str] = []
 
