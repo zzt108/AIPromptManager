@@ -49,7 +49,7 @@ class RegistryPanel(ttk.Frame):
         self._service = service
         self._status_callback = status_callback
         self._all_items: list[
-            tuple[str, str, str, str, bool, str, str | None]
+            tuple[str, str, str, str, bool, SkillStatus, str | None]
         ] = []  # Cache for filtering
 
         self._setup_ui()

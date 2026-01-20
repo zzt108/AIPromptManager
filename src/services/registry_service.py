@@ -357,28 +357,29 @@ class RegistryService:
                 result.errors.append(f"Directory not found: {directory}")
                 continue
 
-            # Scan for markdown files
-            for md_file in dir_path.rglob("*.md"):
-                relative_path = md_file.relative_to(self.repo_root)
+            # Scan for markdown and YAML files
+            for pattern in ("*.md", "*.yaml", "*.yml"):
+                for skill_file in dir_path.rglob(pattern):
+                    relative_path = skill_file.relative_to(self.repo_root)
 
-                try:
-                    name = self._derive_skill_name(relative_path)
-                    found_files.add(name)
+                    try:
+                        name = self._derive_skill_name(relative_path)
+                        found_files.add(name)
 
-                    if name in registry.skills:
-                        # Check if path changed
-                        existing = registry.skills[name]
-                        if existing.path != relative_path:
-                            self.update_skill_path(name, relative_path)
-                            result.updated += 1
-                    else:
-                        # Add new skill
-                        self.add_skill(relative_path)
-                        result.added += 1
+                        if name in registry.skills:
+                            # Check if path changed
+                            existing = registry.skills[name]
+                            if existing.path != relative_path:
+                                self.update_skill_path(name, relative_path)
+                                result.updated += 1
+                        else:
+                            # Add new skill
+                            self.add_skill(relative_path)
+                            result.added += 1
 
-                except ValueError as e:
-                    # Invalid filename pattern, skip
-                    result.errors.append(f"Skipped {relative_path}: {e}")
+                    except ValueError as e:
+                        # Invalid filename pattern, skip
+                        result.errors.append(f"Skipped {relative_path}: {e}")
 
         # Check for removed files
         missing_skills = [name for name in registry.skills if name not in found_files]
