@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Callable
 
 import structlog
 
+from ui.dialogs.rename_dialog import RenameDialog
+
 if TYPE_CHECKING:
     from services.registry_service import RegistryService
 
@@ -144,6 +146,10 @@ class RegistryPanel(ttk.Frame):
         self.context_menu.add_command(
             label="Quick View",
             command=self._show_quick_view,
+        )
+        self.context_menu.add_command(
+            label="Rename Intelligently...",
+            command=self._on_rename_click,
         )
         self.context_menu.add_separator()
         self.context_menu.add_command(
@@ -386,6 +392,39 @@ class RegistryPanel(ttk.Frame):
         except Exception as e:
             logger.error("open_with_editor_error", error=str(e))
             messagebox.showerror("Error", f"Could not open file: {e}")
+
+    def _on_rename_click(self) -> None:
+        """Handle resize/rename action."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        name = selection[0]
+        ingredient = self._service.get_ingredient(name)
+        if not ingredient:
+            return
+
+        dialog = RenameDialog(
+            self,
+            ingredient,
+            naming_service=self._service.naming_service,
+        )
+        self.wait_window(dialog)
+
+        if dialog.result:
+            try:
+                self._service.rename_ingredient(
+                    current_name=name,
+                    new_basename=dialog.result["basename"],
+                    new_type=dialog.result["type"],
+                    new_major=dialog.result["major"],
+                    new_minor=dialog.result["minor"],
+                )
+                self._status_callback(f"Renamed '{name}' successfully.")
+                self.refresh_list()
+            except Exception as e:
+                logger.error("rename_error", error=str(e))
+                messagebox.showerror("Rename Failed", str(e))
 
     def _show_quick_view(self) -> None:
         """Show a Quick View popup for the selected ingredient."""

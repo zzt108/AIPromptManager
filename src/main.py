@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -58,7 +59,8 @@ def main() -> None:
     data_dir = args.data_dir.resolve()
 
     # Configure logging
-    configure_logging(app_name="AIPromptManager", log_level="INFO")
+    seq_url = os.getenv("SEQ_URL")
+    configure_logging(app_name="AIPromptManager", log_level="INFO", seq_url=seq_url)
     logger = structlog.get_logger(__name__)
     logger.info("application_starting", data_dir=str(data_dir))
 

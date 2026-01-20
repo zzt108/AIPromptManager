@@ -450,3 +450,90 @@ class TestVersionLookup:
         latest = registry_service.get_latest_version("Nonexistent")
 
         assert latest is None
+
+
+class TestRenameIngredient:
+    """Tests for rename_ingredient method."""
+
+    def test_rename_ingredient_success(
+        self,
+        registry_service: RegistryService,
+        tmp_repo_structure: Path,
+    ) -> None:
+        """Test renaming an ingredient successfully."""
+        # 1. Setup initial ingredient
+        old_path = Path("core/GUIDE-1-2-General.md")
+        registry_service.add_ingredient(old_path)
+
+        # 2. Rename it
+        registry_service.rename_ingredient(
+            current_name="GUIDE-1-2-General",
+            new_basename="RenamedGeneral",
+            new_type="GUIDE",
+            new_major=1,
+            new_minor=3,
+        )
+
+        # 3. Verify old file gone, new file exists
+        assert not (tmp_repo_structure / old_path).exists()
+        new_path = tmp_repo_structure / "core/GUIDE-1-3-RenamedGeneral.md"
+        assert new_path.exists()
+
+        # 4. Verify registry updated
+        assert registry_service.get_ingredient("GUIDE-1-2-General") is None
+        new_ing = registry_service.get_ingredient("GUIDE-1-3-RenamedGeneral")
+        assert new_ing is not None
+        assert new_ing.basename == "RenamedGeneral"
+
+    def test_rename_ingredient_not_found(
+        self,
+        registry_service: RegistryService,
+    ) -> None:
+        """Test renaming non-existent ingredient raises KeyError."""
+        with pytest.raises(KeyError):
+            registry_service.rename_ingredient("nonexistent", "New", "GUIDE", 1, 0)
+
+    def test_rename_ingredient_collision(
+        self,
+        registry_service: RegistryService,
+        tmp_repo_structure: Path,
+    ) -> None:
+        """Test renaming to existing filename raises ValueError."""
+        path1 = Path("core/GUIDE-1-2-General.md")
+        path2 = Path("core/GUIDE-1-3-Target.md")
+        # Create second file first
+        (tmp_repo_structure / path2).write_text("Target", encoding="utf-8")
+
+        registry_service.add_ingredient(path1)
+        registry_service.add_ingredient(path2)
+
+        # Try to rename first to match second
+        with pytest.raises(ValueError, match="already exists"):
+            registry_service.rename_ingredient(
+                current_name="GUIDE-1-2-General",
+                new_basename="Target",
+                new_type="GUIDE",
+                new_major=1,
+                new_minor=3,
+            )
+
+    def test_rename_ingredient_same_name_noop(
+        self,
+        registry_service: RegistryService,
+        tmp_repo_structure: Path,
+    ) -> None:
+        """Test renaming to same name works (no-op on file, refresh registry)."""
+        path = Path("core/GUIDE-1-2-General.md")
+        registry_service.add_ingredient(path)
+
+        # Rename to same
+        registry_service.rename_ingredient(
+            current_name="GUIDE-1-2-General",
+            new_basename="General",
+            new_type="GUIDE",
+            new_major=1,
+            new_minor=2,
+        )
+
+        assert (tmp_repo_structure / path).exists()
+        assert registry_service.get_ingredient("GUIDE-1-2-General") is not None

@@ -456,18 +456,81 @@ class RegistryService:
         try:
             content = path.read_text(encoding="utf-8")
             for line in content.splitlines():
-                line = line.strip()
                 if line.startswith("# "):
                     return line[2:].strip()
-        except Exception as e:
-            logger.warning(
-                "failed_to_extract_h1",
-                path=str(path),
+        except Exception:
+            pass
+        return path.stem
+
+    def rename_ingredient(
+        self,
+        current_name: str,
+        new_basename: str,
+        new_type: str,
+        new_major: int,
+        new_minor: int,
+    ) -> None:
+        """Rename an ingredient file and update the registry.
+
+        Args:
+            current_name: Current name of the ingredient (key in registry)
+            new_basename: New basename for the file
+            new_type: New type (e.g., GUIDE, SPACE)
+            new_major: New major version
+            new_minor: New minor version
+
+        Raises:
+            KeyError: If ingredient not found
+            ValueError: If new filename already exists or is invalid
+            OSError: If rename operation fails
+        """
+        ingredient = self.get_ingredient(current_name)
+        if not ingredient:
+            raise KeyError(f"Ingredient not found: {current_name}")
+
+        # Generate new filename
+        if self.naming_service:
+            new_filename = self.naming_service.make_versioned(
+                basename=new_basename,
+                major=new_major,
+                minor=new_minor,
+                type_str=new_type,
+            )
+        else:
+            # Fallback using hardcoded pattern
+            new_filename = f"{new_type}-{new_major}-{new_minor}-{new_basename}.md"
+
+        old_path = self.repo_root / ingredient.path
+        new_path = old_path.parent / new_filename
+
+        if new_path.exists() and new_path != old_path:
+            raise ValueError(f"File already exists: {new_filename}")
+
+        # Rename file on disk
+        try:
+            old_path.rename(new_path)
+            logger.info(
+                "file_renamed",
+                old=str(old_path),
+                new=str(new_path),
+            )
+        except OSError as e:
+            logger.error(
+                "rename_failed",
+                old=str(old_path),
+                new=str(new_path),
                 error=str(e),
             )
+            raise
 
-        # Fallback to filename without extension
-        return path.stem
+        # Force a refresh to update internal state
+        # We need to scan the directory where the file lives.
+        try:
+            relative_dir = old_path.parent.relative_to(self.repo_root)
+            self.refresh_registry([str(relative_dir)])
+        except Exception as e:
+            logger.error("registry_refresh_failed_after_rename", error=str(e))
+            # We don't raise here because the rename succeeded on disk
 
     def _derive_ingredient_name(self, path: Path) -> str:
         """Derive ingredient name from file path.
