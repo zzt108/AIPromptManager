@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -147,6 +147,7 @@ class RegistryService:
             basename=basename,
             status=status,
             status_detail=status_detail,
+            modified_at=absolute_path.stat().st_mtime,
         )
 
         # Add to registry and save
@@ -241,6 +242,7 @@ class RegistryService:
             minor=old.minor,
             basename=old.basename,
             is_enabled=enabled,
+            modified_at=old.modified_at,
         )
         self._save_registry()
 
@@ -276,6 +278,7 @@ class RegistryService:
                     minor=old.minor,
                     basename=old.basename,
                     is_enabled=enabled,
+                    modified_at=old.modified_at,
                 )
                 updated += 1
 
@@ -319,6 +322,7 @@ class RegistryService:
             minor=old_skill.minor,
             basename=old_skill.basename,
             is_enabled=old_skill.is_enabled,
+            modified_at=absolute_path.stat().st_mtime,
         )
         self._save_registry()
 
@@ -366,14 +370,43 @@ class RegistryService:
                         name = self._derive_skill_name(relative_path)
                         found_files.add(name)
 
+                        current_mtime = skill_file.stat().st_mtime
                         if name in registry.skills:
-                            # Check if path changed
                             existing = registry.skills[name]
-                            if existing.path != relative_path:
-                                self.update_skill_path(name, relative_path)
+
+                            # Check if path changed
+                            path_changed = existing.path != relative_path
+                            # Check if file modified (allow small float diff)
+                            file_modified = (
+                                abs(existing.modified_at - current_mtime) > 0.001
+                            )
+
+                            if path_changed or file_modified:
+                                # We need to update the skill
+                                new_skill = Skill(
+                                    name=existing.name,
+                                    path=relative_path,
+                                    description=existing.description,
+                                    type=existing.type,
+                                    major=existing.major,
+                                    minor=existing.minor,
+                                    basename=existing.basename,
+                                    is_enabled=existing.is_enabled,
+                                    status=existing.status,
+                                    status_detail=existing.status_detail,
+                                    modified_at=current_mtime,
+                                )
+                                registry.skills[name] = new_skill
                                 result.updated += 1
+                                if path_changed:
+                                    logger.info(
+                                        "skill_path_updated_refresh",
+                                        name=name,
+                                        old=str(existing.path),
+                                        new=str(relative_path),
+                                    )
                         else:
-                            # Add new skill
+                            # Add new skill (name NOT in registry)
                             self.add_skill(relative_path)
                             result.added += 1
 
@@ -577,14 +610,41 @@ class RegistryService:
             )
             raise
 
-        # Force a refresh to update internal state
-        # We need to scan the directory where the file lives.
-        try:
-            relative_dir = old_path.parent.relative_to(self.repo_root)
-            self.refresh_registry([str(relative_dir)])
-        except Exception as e:
-            logger.error("registry_refresh_failed_after_rename", error=str(e))
-            # We don't raise here because the rename succeeded on disk
+        # Update registry directly instead of calling refresh_registry
+        # (refresh_registry with single dir would delete all other skills!)
+        registry = self._load_registry()
+
+        # Remove old skill entry
+        if current_name in registry.skills:
+            del registry.skills[current_name]
+
+        # Create new skill entry with updated metadata
+        new_relative_path = new_path.relative_to(self.repo_root)
+        new_name = self._derive_skill_name(new_relative_path)
+        new_description = self._extract_h1_heading(new_path)
+
+        new_skill = Skill(
+            name=new_name,
+            path=new_relative_path,
+            description=new_description,
+            type=new_type,
+            major=new_major,
+            minor=new_minor,
+            basename=new_basename,
+            is_enabled=skill.is_enabled,
+            status=SkillStatus.VALID,  # Now has valid naming pattern
+            status_detail=None,
+            modified_at=new_path.stat().st_mtime,
+        )
+
+        registry.skills[new_name] = new_skill
+        self._save_registry()
+
+        logger.info(
+            "skill_renamed_in_registry",
+            old_name=current_name,
+            new_name=new_name,
+        )
 
     def _derive_skill_name(self, path: Path) -> str:
         """Derive skill name from file path.
@@ -598,6 +658,115 @@ class RegistryService:
             Derived skill name
         """
         return path.stem
+
+    def generate_rename_suggestions(self, skill: Skill) -> list[dict[str, Any]]:
+        """Generate intelligent rename suggestions for a skill.
+
+        Strategies:
+        1. H1 Heading: Extract basename from first H1
+        2. YAML Frontmatter: Extract type/version/name
+        3. Cleaned Stem: Fallback text cleanup
+
+        Args:
+            skill: The skill to generate suggestions for
+
+        Returns:
+            List of suggestion dicts {source, type, major, minor, basename}
+        """
+        suggestions = []
+        absolute_path = self.repo_root / skill.path
+
+        try:
+            content = absolute_path.read_text(encoding="utf-8")
+        except Exception:
+            return []
+
+        # Strategy 1: H1 Heading (Basename only)
+        # Use existing helper but handle fallback
+        h1_text = self._extract_h1_heading(absolute_path)
+        # _extract_h1_heading falls back to stem, so check if it differs
+        if h1_text and h1_text != skill.path.stem:
+            # Clean up H1: PascalCase, alphanumeric only
+            clean_h1 = "".join(x for x in h1_text.title() if x.isalnum())
+            if clean_h1:
+                # Default to GUIDE if type is unknown/uncategorized
+                suggestion_type = (
+                    skill.type if skill.type != "Uncategorized" else "GUIDE"
+                )
+                suggestions.append(
+                    {
+                        "source": "H1 Heading",
+                        "type": suggestion_type,
+                        "major": skill.major,
+                        "minor": skill.minor,
+                        "basename": clean_h1,
+                    }
+                )
+
+        # Strategy 2: YAML Frontmatter
+        frontmatter = {}
+        if content.startswith("---"):
+            try:
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    yaml_text = parts[1]
+                    for line in yaml_text.splitlines():
+                        if ":" in line:
+                            key, val = line.split(":", 1)
+                            frontmatter[key.strip()] = val.strip().strip("\"'")
+            except Exception:
+                pass
+
+        if frontmatter:
+            # Extract fields with defaults
+            fm_type = frontmatter.get("type", skill.type)
+            if fm_type == "Uncategorized":
+                fm_type = "GUIDE"
+
+            fm_ver = str(frontmatter.get("version", f"{skill.major}.{skill.minor}"))
+            fm_name = frontmatter.get("name", "")
+
+            # Parse version string "1.2" -> 1, 2
+            try:
+                if "." in fm_ver:
+                    fm_major, fm_minor = map(int, fm_ver.split(".")[:2])
+                else:
+                    fm_major, fm_minor = int(fm_ver), 0
+            except ValueError:
+                fm_major, fm_minor = 1, 0
+
+            clean_fm_name = "".join(x for x in fm_name.title() if x.isalnum())
+
+            # Only add if we found something useful
+            if clean_fm_name or fm_type != skill.type:
+                suggestions.append(
+                    {
+                        "source": "YAML Frontmatter",
+                        "type": fm_type,
+                        "major": fm_major,
+                        "minor": fm_minor,
+                        "basename": clean_fm_name or skill.basename,
+                    }
+                )
+
+        # Strategy 3: Cleaned Stem (Fallback)
+        # e.g. "my-cool_script" -> "MyCoolScript"
+        stem = skill.path.stem
+        clean_stem = "".join(
+            x for x in stem.replace("-", " ").replace("_", " ").title() if x.isalnum()
+        )
+
+        suggestions.append(
+            {
+                "source": "Cleaned Filename",
+                "type": skill.type if skill.type != "Uncategorized" else "GUIDE",
+                "major": skill.major,
+                "minor": skill.minor,
+                "basename": clean_stem,
+            }
+        )
+
+        return suggestions
 
     def find_skills_by_basename(self, basename: str) -> list[Skill]:
         """Find all skills with the same basename.
