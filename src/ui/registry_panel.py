@@ -186,6 +186,10 @@ class RegistryPanel(ttk.Frame):
             label="Open with Editor",
             command=self._open_with_editor,
         )
+        self.context_menu.add_command(
+            label="Open with Notepad",
+            command=self._open_with_notepad,
+        )
 
     def _setup_bindings(self) -> None:
         """Set up event bindings."""
@@ -477,6 +481,24 @@ class RegistryPanel(ttk.Frame):
         except Exception as e:
             logger.error("open_with_editor_error", error=str(e))
             messagebox.showerror("Error", f"Could not open file: {e}")
+
+    def _open_with_notepad(self) -> None:
+        """Open the selected file with Notepad."""
+        file_path = self._get_selected_file_path()
+        if not file_path:
+            messagebox.showinfo("Open with Notepad", "No item selected.")
+            return
+
+        try:
+            if platform.system() == "Windows":
+                subprocess.run(["notepad.exe", file_path], check=False)
+            else:
+                # Fallback for non-Windows (mostly for dev/testing)
+                self._open_with_editor()
+            logger.info("open_with_notepad", path=file_path)
+        except Exception as e:
+            logger.error("open_with_notepad_error", error=str(e))
+            messagebox.showerror("Error", f"Could not open Notepad: {e}")
 
     def _on_rename_click(self) -> None:
         """Handle resize/rename action."""
