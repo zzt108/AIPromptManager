@@ -27,6 +27,8 @@ dependencies = [
 dev = [
     "black>=24.1.0",
     "pytest-cov>=4.1.0",
+    "requests>=2.28.0",
+    "types-requests>=2.28.0",
 ]
 
 [project.urls]
@@ -52,6 +54,10 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 mypy_path = "src"
 explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "requests.*"
+ignore_missing_imports = true
 
 [tool.black]
 line-length = 88

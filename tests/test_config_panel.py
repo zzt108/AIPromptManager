@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from models.ingredient import Ingredient
+from models.skill import Skill
 from ui.config_panel import ConfigPanel
 
 
@@ -16,9 +16,9 @@ from ui.config_panel import ConfigPanel
 def mock_registry_service() -> MagicMock:
     """Create a mock registry service."""
     service = MagicMock()
-    ingredients = [
-        Ingredient(
-            name="ingredient1",
+    skills = [
+        Skill(
+            name="skill1",
             path=Path("path/to/i1.md"),
             description="i1 desc",
             type="PROMPT",
@@ -26,8 +26,8 @@ def mock_registry_service() -> MagicMock:
             minor=0,
             basename="i1",
         ),
-        Ingredient(
-            name="ingredient2",
+        Skill(
+            name="skill2",
             path=Path("path/to/i2.md"),
             description="i2 desc",
             type="PROMPT",
@@ -36,8 +36,8 @@ def mock_registry_service() -> MagicMock:
             basename="i2",
         ),
     ]
-    service.list_all.return_value = ingredients
-    service.list_enabled.return_value = ingredients  # Same as list_all for tests
+    service.list_all.return_value = skills
+    service.list_enabled.return_value = skills  # Same as list_all for tests
     return service
 
 
@@ -50,10 +50,12 @@ def config_panel(tk_root: tk.Tk, mock_registry_service: MagicMock) -> ConfigPane
     return panel
 
 
-def test_initial_state(config_panel: ConfigPanel, mock_registry_service: MagicMock) -> None:
+def test_initial_state(
+    config_panel: ConfigPanel, mock_registry_service: MagicMock
+) -> None:
     """Test that the panel initializes correctly."""
     available = config_panel.available_list.get(0, "end")
-    assert available == ("ingredient1", "ingredient2")
+    assert available == ("skill1", "skill2")
 
     selected = config_panel.selected_list.get(0, "end")
     assert selected == ()
@@ -67,7 +69,7 @@ def test_add_selected(config_panel: ConfigPanel) -> None:
     config_panel._add_selected()
 
     selected = config_panel.selected_list.get(0, "end")
-    assert selected == ("ingredient1",)
+    assert selected == ("skill1",)
 
 
 def test_add_duplicate_prevention(config_panel: ConfigPanel) -> None:
@@ -81,7 +83,7 @@ def test_add_duplicate_prevention(config_panel: ConfigPanel) -> None:
     config_panel._add_selected()
 
     selected = config_panel.selected_list.get(0, "end")
-    assert selected == ("ingredient1",)
+    assert selected == ("skill1",)
 
 
 def test_remove_selected(config_panel: ConfigPanel) -> None:
@@ -168,4 +170,3 @@ def test_save_profession(config_panel: ConfigPanel, tmp_path: Path) -> None:
     assert save_path.exists()
     data = json.loads(save_path.read_text(encoding="utf-8"))
     assert data["ingredients"] == ["saved1", "saved2"]
-

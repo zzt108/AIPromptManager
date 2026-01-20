@@ -77,8 +77,8 @@ class BaseSyncDialog(tk.Toplevel):
         ttk.Label(info_frame, text="File:", font=("Segoe UI", 9, "bold")).grid(row=0, column=0, **grid_opts)  # type: ignore
         ttk.Label(info_frame, text=self.task.target_filename).grid(row=0, column=1, **grid_opts)  # type: ignore
 
-        ttk.Label(info_frame, text="Ingredient:", font=("Segoe UI", 9, "bold")).grid(row=1, column=0, **grid_opts)  # type: ignore
-        ttk.Label(info_frame, text=self.task.ingredient.name).grid(row=1, column=1, **grid_opts)  # type: ignore
+        ttk.Label(info_frame, text="Skill:", font=("Segoe UI", 9, "bold")).grid(row=1, column=0, **grid_opts)  # type: ignore
+        ttk.Label(info_frame, text=self.task.skill.name).grid(row=1, column=1, **grid_opts)  # type: ignore
 
         # Custom Message
         msg_lbl = ttk.Label(main_frame, text=message, wraplength=550)

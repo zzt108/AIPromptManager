@@ -1,4 +1,4 @@
-"""Registry panel for viewing and managing ingredients."""
+"""Registry panel for viewing and managing skills."""
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ from typing import TYPE_CHECKING, Callable
 
 import structlog
 
+from ui.dialogs.rename_dialog import RenameDialog
+from models.skill_status import SkillStatus
+
 if TYPE_CHECKING:
     from services.registry_service import RegistryService
 
@@ -18,15 +21,15 @@ logger = structlog.get_logger(__name__)
 
 
 class RegistryPanel(ttk.Frame):
-    """Panel for displaying and managing registry ingredients.
+    """Panel for displaying and managing registry skills.
 
-    Shows a treeview of all ingredients with columns for
+    Shows a treeview of all skills with columns for
     Type, Name, Version, and Path. Supports filtering, visibility toggle,
     Quick View popup, and context menu actions.
 
     Attributes:
         service: Registry service for data operations
-        tree: Treeview widget for ingredient display
+        tree: Treeview widget for skill display
     """
 
     def __init__(
@@ -45,9 +48,9 @@ class RegistryPanel(ttk.Frame):
         super().__init__(parent)
         self._service = service
         self._status_callback = status_callback
-        self._all_items: list[tuple[str, str, str, str, bool]] = (
-            []
-        )  # Cache for filtering
+        self._all_items: list[
+            tuple[str, str, str, str, bool, SkillStatus, str | None]
+        ] = []  # Cache for filtering
 
         self._setup_ui()
         self._setup_context_menu()
@@ -103,7 +106,7 @@ class RegistryPanel(ttk.Frame):
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
 
-        columns = ("type", "name", "version", "path")
+        columns = ("status", "type", "name", "version", "path", "details")
         self.tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -111,22 +114,32 @@ class RegistryPanel(ttk.Frame):
             selectmode="extended",  # Enable multi-selection
         )
 
+        self.tree.column("status", width=50, minwidth=40, anchor=tk.CENTER)
         self.tree.column("type", width=80, minwidth=60)
         self.tree.column("name", width=200, minwidth=100)
-        self.tree.column("version", width=80, minwidth=50, anchor=tk.CENTER)
-        self.tree.column("path", width=400, minwidth=200)
+        self.tree.column("version", width=60, minwidth=50, anchor=tk.CENTER)
+        self.tree.column("path", width=300, minwidth=200)
+        self.tree.column("details", width=200, minwidth=100)
 
         # Configure sortable headings
-        for col in columns:
+        self.tree.heading(
+            "status",
+            text="St",
+            command=lambda: self._sort_column("status", False),
+        )
+        for col in ("type", "name", "version", "path", "details"):
             self.tree.heading(
                 col,
                 text=col.capitalize(),
-                anchor=tk.W if col != "version" else tk.CENTER,
+                anchor=tk.W if col not in ("version",) else tk.CENTER,
                 command=lambda c=col: self._sort_column(c, False),
             )
 
-        # Configure tag styles for hidden items
+        # Configure tag styles
         self.tree.tag_configure("hidden", foreground="gray")
+        self.tree.tag_configure("status_valid", foreground="black")
+        self.tree.tag_configure("status_unrecognized", foreground="#e67e22")  # Orange
+        self.tree.tag_configure("status_parse_error", foreground="#c0392b")  # Red
 
         # Scrollbars
         vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -144,6 +157,10 @@ class RegistryPanel(ttk.Frame):
         self.context_menu.add_command(
             label="Quick View",
             command=self._show_quick_view,
+        )
+        self.context_menu.add_command(
+            label="Rename Intelligently...",
+            command=self._on_rename_click,
         )
         self.context_menu.add_separator()
         self.context_menu.add_command(
@@ -185,32 +202,34 @@ class RegistryPanel(ttk.Frame):
             self.context_menu.tk_popup(event.x_root, event.y_root)
 
     def refresh_list(self) -> None:
-        """Reload ingredient list from service."""
+        """Reload skill list from service."""
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Load ingredients
-        ingredients = self._service.list_all()
+        # Load skills
+        skills = self._service.list_all()
 
         # Cache for filtering
         self._all_items = []
-        for ing in ingredients:
-            version_str = f"{ing.major}.{ing.minor}"
+        for skill in skills:
+            version_str = f"{skill.major}.{skill.minor}"
             self._all_items.append(
                 (
-                    ing.type,
-                    ing.name,
+                    skill.type,
+                    skill.name,
                     version_str,
-                    str(ing.path),
-                    ing.is_enabled,
+                    str(skill.path),
+                    skill.is_enabled,
+                    skill.status,
+                    skill.status_detail,
                 )
             )
 
         # Apply current filter
         self._apply_filter()
 
-        count = len(ingredients)
+        count = len(skills)
         self._status_callback(f"Loaded {count} skills")
         logger.info("registry_list_refreshed", count=count)
 
@@ -224,26 +243,45 @@ class RegistryPanel(ttk.Frame):
 
         # Re-populate with filtered items
         show_hidden = self.show_hidden_var.get()
-        for type_val, name, version, path, is_enabled in self._all_items:
+        for (
+            type_val,
+            name,
+            version,
+            path,
+            is_enabled,
+            status,
+            details,
+        ) in self._all_items:
             # Respect "Show Hidden" toggle
             if not is_enabled and not show_hidden:
                 continue
 
-            # Filter on name AND path
-            if (
-                filter_text
-                and filter_text not in name.lower()
-                and filter_text not in path.lower()
-            ):
+            # Filter on name, path, OR details
+            search_content = f"{name} {path} {details or ''}".lower()
+            if filter_text and filter_text not in search_content:
                 continue
 
-            tags = () if is_enabled else ("hidden",)
+            # Determine tags
+            tags = []
+            if not is_enabled:
+                tags.append("hidden")
+
+            # Status tag for coloring (use .value to get string)
+            tags.append(f"status_{status.value}")
+
+            # Determine icon
+            icon = "✓"
+            if status == SkillStatus.UNRECOGNIZED:
+                icon = "⚠️"
+            elif status == SkillStatus.PARSE_ERROR:
+                icon = "❌"
+
             self.tree.insert(
                 "",
                 tk.END,
                 iid=name,
-                values=(type_val, name, version, path),
-                tags=tags,
+                values=(icon, type_val, name, version, path, details or ""),
+                tags=tuple(tags),
             )
 
     def _clear_filter(self) -> None:
@@ -314,9 +352,9 @@ class RegistryPanel(ttk.Frame):
         if selection:
             count = len(selection)
             if count == 1:
-                logger.debug("ingredient_selected", name=selection[0])
+                logger.debug("skill_selected", name=selection[0])
             else:
-                logger.debug("ingredients_selected", count=count)
+                logger.debug("skills_selected", count=count)
 
     def _toggle_visibility(self, enabled: bool) -> None:
         """Toggle visibility for selected items.
@@ -329,7 +367,7 @@ class RegistryPanel(ttk.Frame):
             return
 
         names = list(selection)
-        updated = self._service.set_ingredients_enabled(names, enabled)
+        updated = self._service.set_skills_enabled(names, enabled)
 
         if updated > 0:
             action = "shown" if enabled else "hidden"
@@ -343,11 +381,11 @@ class RegistryPanel(ttk.Frame):
             return None
 
         name = selection[0]
-        ingredient = self._service.get_ingredient(name)
-        if not ingredient:
+        skill = self._service.get_skill(name)
+        if not skill:
             return None
 
-        return str(self._service.repo_root / ingredient.path)
+        return str(self._service.repo_root / skill.path)
 
     def _show_in_explorer(self) -> None:
         """Open file explorer at the selected file's location."""
@@ -387,22 +425,55 @@ class RegistryPanel(ttk.Frame):
             logger.error("open_with_editor_error", error=str(e))
             messagebox.showerror("Error", f"Could not open file: {e}")
 
+    def _on_rename_click(self) -> None:
+        """Handle resize/rename action."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        name = selection[0]
+        skill = self._service.get_skill(name)
+        if not skill:
+            return
+
+        dialog = RenameDialog(
+            self,
+            skill,
+            naming_service=self._service.naming_service,
+        )
+        self.wait_window(dialog)
+
+        if dialog.result:
+            try:
+                self._service.rename_skill(
+                    current_name=name,
+                    new_basename=dialog.result["basename"],
+                    new_type=dialog.result["type"],
+                    new_major=dialog.result["major"],
+                    new_minor=dialog.result["minor"],
+                )
+                self._status_callback(f"Renamed '{name}' successfully.")
+                self.refresh_list()
+            except Exception as e:
+                logger.error("rename_error", error=str(e))
+                messagebox.showerror("Rename Failed", str(e))
+
     def _show_quick_view(self) -> None:
-        """Show a Quick View popup for the selected ingredient."""
+        """Show a Quick View popup for the selected skill."""
         selection = self.tree.selection()
         if not selection:
             messagebox.showinfo("Quick View", "No item selected.")
             return
 
         name = selection[0]
-        ingredient = self._service.get_ingredient(name)
+        skill = self._service.get_skill(name)
 
-        if not ingredient:
-            messagebox.showwarning("Quick View", f"Ingredient '{name}' not found.")
+        if not skill:
+            messagebox.showwarning("Quick View", f"Skill '{name}' not found.")
             return
 
         # Read file content
-        file_path = self._service.repo_root / ingredient.path
+        file_path = self._service.repo_root / skill.path
         if not file_path.exists():
             messagebox.showwarning("Quick View", f"File not found: {file_path}")
             return

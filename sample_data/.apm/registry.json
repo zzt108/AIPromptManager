@@ -7,7 +7,7 @@
       "major": 1,
       "minor": 0,
       "basename": "Getting-Started",
-      "path": "sample_data/prompts/GUIDE-1-0-Getting-Started.md",
+      "path": "prompts/GUIDE-1-0-Getting-Started.md",
       "description": "Getting Started with AIPromptManager",
       "is_enabled": true
     },
@@ -17,7 +17,7 @@
       "major": 1,
       "minor": 0,
       "basename": "Web-Development",
-      "path": "sample_data/prompts/SPACE-1-0-Web-Development.md",
+      "path": "prompts/SPACE-1-0-Web-Development.md",
       "description": "Web Development",
       "is_enabled": true
     },
@@ -27,7 +27,7 @@
       "major": 1,
       "minor": 0,
       "basename": "Code-Review",
-      "path": "sample_data/prompts/PROMPT-1-0-Code-Review.md",
+      "path": "prompts/PROMPT-1-0-Code-Review.md",
       "description": "Code Review Checklist",
       "is_enabled": true
     }

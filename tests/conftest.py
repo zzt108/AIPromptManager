@@ -8,7 +8,7 @@ from typing import Any, Generator
 
 import pytest
 
-from models.ingredient import Ingredient
+from models.skill import Skill
 from models.registry_schema import RegistrySchema
 
 
@@ -27,13 +27,13 @@ def tk_root() -> Generator[tk.Tk, None, None]:
 
 
 @pytest.fixture
-def sample_ingredient() -> Ingredient:
-    """Create a sample Ingredient instance for testing.
+def sample_skill() -> Skill:
+    """Create a sample Skill instance for testing.
 
     Returns:
-        Ingredient with test data
+        Skill with test data
     """
-    return Ingredient(
+    return Skill(
         name="python-conventions",
         path=Path("platform/python/GUIDE-1-0-coding-convention-python.md"),
         description="Python Coding Conventions & Standards",

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from models.ingredient import Ingredient
+from models.skill import Skill
 from models.registry_schema import RegistrySchema
 from repositories.registry_repository import RegistryRepository
 
@@ -22,9 +22,9 @@ def test_load_registry_success(tmp_registry: Path) -> None:
     # Assert
     assert isinstance(registry, RegistrySchema)
     assert registry.version == "1.0"
-    assert len(registry.ingredients) == 2
-    assert "python-conventions" in registry.ingredients
-    assert "plantuml-core" in registry.ingredients
+    assert len(registry.skills) == 2
+    assert "python-conventions" in registry.skills
+    assert "plantuml-core" in registry.skills
 
 
 def test_load_registry_file_not_found(tmp_path: Path) -> None:
@@ -74,17 +74,17 @@ def test_save_registry_success(tmp_path: Path) -> None:
     repo = RegistryRepository()
     registry_path = tmp_path / "new_registry.json"
 
-    ingredient = Ingredient(
+    skill = Skill(
         name="test",
         path=Path("test.md"),
-        description="Test ingredient",
+        description="Test Skill",
         type="GUIDE",
         major=1,
         minor=0,
         basename="test",
     )
 
-    registry = RegistrySchema(version="1.0", ingredients={"test": ingredient})
+    registry = RegistrySchema(version="1.0", skills={"test": skill})
 
     # Act
     repo.save_registry(registry_path, registry)
@@ -95,7 +95,7 @@ def test_save_registry_success(tmp_path: Path) -> None:
     # Verify content
     loaded_registry = repo.load_registry(registry_path)
     assert loaded_registry.version == "1.0"
-    assert "test" in loaded_registry.ingredients
+    assert "test" in loaded_registry.skills
 
 
 def test_save_registry_round_trip(tmp_registry: Path, tmp_path: Path) -> None:
@@ -111,13 +111,13 @@ def test_save_registry_round_trip(tmp_registry: Path, tmp_path: Path) -> None:
 
     # Assert
     assert loaded_registry.version == original_registry.version
-    assert len(loaded_registry.ingredients) == len(original_registry.ingredients)
+    assert len(loaded_registry.skills) == len(original_registry.skills)
 
-    for name, ingredient in original_registry.ingredients.items():
-        assert name in loaded_registry.ingredients
-        loaded = loaded_registry.ingredients[name]
-        assert loaded.name == ingredient.name
-        assert loaded.path == ingredient.path
-        assert loaded.type == ingredient.type
-        assert loaded.major == ingredient.major
-        assert loaded.minor == ingredient.minor
+    for name, skill in original_registry.skills.items():
+        assert name in loaded_registry.skills
+        loaded = loaded_registry.skills[name]
+        assert loaded.name == skill.name
+        assert loaded.path == skill.path
+        assert loaded.type == skill.type
+        assert loaded.major == skill.major
+        assert loaded.minor == skill.minor

@@ -8,28 +8,29 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from models.ingredient import Ingredient
+from models.conventions_schema import ConventionsSchema
+from models.skill import Skill
+from models.skill_status import SkillStatus
 from models.registry_schema import RegistrySchema
 from models.service_results import RefreshResult
 
 if TYPE_CHECKING:
     from repositories.registry_repository import RegistryRepository
+    from services.naming_service import NamingService
 
 logger = structlog.get_logger()
 
-# Pattern for versioned filenames: TYPE-MAJOR-MINOR-Name.md
-VERSIONED_PATTERN = re.compile(
-    r"^(?P<type>[a-zA-Z0-9]+)-(?P<major>\d+)-(?P<minor>\d+)-(?P<basename>.+)\.md$"
+# Legacy patterns for backward compatibility when no NamingService provided
+_VERSIONED_PATTERN = re.compile(
+    r"^(?P<type>[a-zA-Z0-9_]+)-(?P<major>\d+)-(?P<minor>\d+)-(?P<basename>.+)\.md$"
 )
-
-# Pattern for version-less filenames: TYPE--Name.md
-VERSIONLESS_PATTERN = re.compile(r"^(?P<type>[a-zA-Z0-9]+)--(?P<basename>.+)\.md$")
+_VERSIONLESS_PATTERN = re.compile(r"^(?P<type>[a-zA-Z0-9_]+)--(?P<basename>.+)\.md$")
 
 
 class RegistryService:
     """Business logic for registry operations.
 
-    Provides CRUD operations on ingredients and registry refresh functionality.
+    Provides CRUD operations on skills and registry refresh functionality.
     Uses constructor injection for testability.
 
     Attributes:
@@ -43,6 +44,7 @@ class RegistryService:
         registry_repository: RegistryRepository,
         registry_path: Path,
         repo_root: Path,
+        naming_service: NamingService | None = None,
     ) -> None:
         """Initialize registry service.
 
@@ -50,10 +52,13 @@ class RegistryService:
             registry_repository: Repository for loading/saving registry
             registry_path: Path to registry.json
             repo_root: Root path of the repository for relative paths
+            naming_service: Optional NamingService for filename parsing.
+                           If None, uses legacy hardcoded patterns.
         """
         self.registry_repository = registry_repository
         self.registry_path = registry_path
         self.repo_root = repo_root
+        self.naming_service = naming_service
         self._registry: RegistrySchema | None = None
 
     def _load_registry(self) -> RegistrySchema:
@@ -69,7 +74,7 @@ class RegistryService:
                 )
             else:
                 # Create empty registry if file doesn't exist
-                self._registry = RegistrySchema(version="1.0", ingredients={})
+                self._registry = RegistrySchema(version="1.0", skills={})
         return self._registry
 
     def _save_registry(self) -> None:
@@ -81,144 +86,153 @@ class RegistryService:
         """Invalidate the cached registry to force reload."""
         self._registry = None
 
-    def add_ingredient(
+    def add_skill(
         self,
         path: Path,
         description: str | None = None,
-    ) -> Ingredient:
-        """Add a new ingredient to the registry.
+    ) -> Skill:
+        """Add a new skill to the registry.
 
         Extracts metadata (type, version, basename) from the filename.
         If description is None, extracts H1 heading from markdown file.
 
         Args:
-            path: Path to the ingredient file (relative to repo_root)
+            path: Path to the skill file (relative to repo_root)
             description: Optional description (extracted from H1 if None)
 
         Returns:
-            The created Ingredient
+            The created Skill
 
         Raises:
             FileNotFoundError: If the file doesn't exist
-            ValueError: If ingredient already exists or filename is invalid
+            ValueError: If skill already exists or filename is invalid
         """
         absolute_path = self.repo_root / path
 
         if not absolute_path.exists():
-            logger.error("ingredient_file_not_found", path=str(path))
-            raise FileNotFoundError(f"Ingredient file not found: {path}")
+            logger.error("skill_file_not_found", path=str(path))
+            raise FileNotFoundError(f"Skill file not found: {path}")
 
-        # Extract metadata from filename
-        ingredient_type, major, minor, basename = self._extract_metadata(path)
+        # Extract metadata intelligently
+        (
+            skill_type,
+            major,
+            minor,
+            basename,
+            status,
+            status_detail,
+        ) = self._extract_metadata_intelligently(path)
 
-        # Derive ingredient name from path
-        name = self._derive_ingredient_name(path)
+        # Derive skill name from path
+        name = self._derive_skill_name(path)
 
         # Check for duplicates
         registry = self._load_registry()
-        if name in registry.ingredients:
-            logger.warning("ingredient_already_exists", name=name)
-            raise ValueError(f"Ingredient already exists: {name}")
+        if name in registry.skills:
+            logger.warning("skill_already_exists", name=name)
+            raise ValueError(f"Skill already exists: {name}")
 
         # Extract description from H1 if not provided
         if description is None:
             description = self._extract_h1_heading(absolute_path)
 
-        # Create ingredient
-        ingredient = Ingredient(
+        # Create skill
+        skill = Skill(
             name=name,
             path=path,
             description=description,
-            type=ingredient_type,
+            type=skill_type,
             major=major,
             minor=minor,
             basename=basename,
+            status=status,
+            status_detail=status_detail,
         )
 
         # Add to registry and save
-        registry.ingredients[name] = ingredient
+        registry.skills[name] = skill
         self._save_registry()
 
         logger.info(
-            "ingredient_added",
+            "skill_added",
             name=name,
             path=str(path),
-            type=ingredient_type,
+            type=skill_type,
             version=f"{major}.{minor}",
         )
 
-        return ingredient
+        return skill
 
-    def remove_ingredient(self, name: str) -> None:
-        """Remove an ingredient from the registry.
+    def remove_skill(self, name: str) -> None:
+        """Remove a skill from the registry.
 
         Args:
-            name: Name of the ingredient to remove
+            name: Name of the skill to remove
 
         Raises:
-            KeyError: If ingredient doesn't exist
+            KeyError: If skill doesn't exist
         """
         registry = self._load_registry()
 
-        if name not in registry.ingredients:
-            logger.error("ingredient_not_found", name=name)
-            raise KeyError(f"Ingredient not found: {name}")
+        if name not in registry.skills:
+            logger.error("skill_not_found", name=name)
+            raise KeyError(f"Skill not found: {name}")
 
-        del registry.ingredients[name]
+        del registry.skills[name]
         self._save_registry()
 
-        logger.info("ingredient_removed", name=name)
+        logger.info("skill_removed", name=name)
 
-    def get_ingredient(self, name: str) -> Ingredient | None:
-        """Get an ingredient by name.
+    def get_skill(self, name: str) -> Skill | None:
+        """Get a skill by name.
 
         Args:
-            name: Name of the ingredient
+            name: Name of the skill
 
         Returns:
-            Ingredient if found, None otherwise
+            Skill if found, None otherwise
         """
         registry = self._load_registry()
-        return registry.ingredients.get(name)
+        return registry.skills.get(name)
 
-    def list_all(self) -> list[Ingredient]:
-        """List all ingredients in the registry.
+    def list_all(self) -> list[Skill]:
+        """List all skills in the registry.
 
         Returns:
-            List of all ingredients, sorted by name
+            List of all skills, sorted by name
         """
         registry = self._load_registry()
         return sorted(
-            registry.ingredients.values(),
+            registry.skills.values(),
             key=lambda i: i.name,
         )
 
-    def list_enabled(self) -> list[Ingredient]:
-        """List only enabled ingredients (visible in Profession Designer).
+    def list_enabled(self) -> list[Skill]:
+        """List only enabled skills (visible in Profession Designer).
 
         Returns:
-            List of enabled ingredients, sorted by name
+            List of enabled skills, sorted by name
         """
-        return [ing for ing in self.list_all() if ing.is_enabled]
+        return [skill for skill in self.list_all() if skill.is_enabled]
 
-    def set_ingredient_enabled(self, name: str, enabled: bool) -> None:
-        """Set the enabled/hidden state for a single ingredient.
+    def set_skill_enabled(self, name: str, enabled: bool) -> None:
+        """Set the enabled/hidden state for a single skill.
 
         Args:
-            name: Name of the ingredient
+            name: Name of the skill
             enabled: True to enable (show), False to hide
 
         Raises:
-            KeyError: If ingredient doesn't exist
+            KeyError: If skill doesn't exist
         """
         registry = self._load_registry()
 
-        if name not in registry.ingredients:
-            logger.error("ingredient_not_found", name=name)
-            raise KeyError(f"Ingredient not found: {name}")
+        if name not in registry.skills:
+            logger.error("skill_not_found", name=name)
+            raise KeyError(f"Skill not found: {name}")
 
-        old = registry.ingredients[name]
-        registry.ingredients[name] = Ingredient(
+        old = registry.skills[name]
+        registry.skills[name] = Skill(
             name=old.name,
             path=old.path,
             description=old.description,
@@ -231,29 +245,29 @@ class RegistryService:
         self._save_registry()
 
         action = "enabled" if enabled else "hidden"
-        logger.info("ingredient_visibility_changed", name=name, action=action)
+        logger.info("skill_visibility_changed", name=name, action=action)
 
-    def set_ingredients_enabled(self, names: list[str], enabled: bool) -> int:
-        """Set the enabled/hidden state for multiple ingredients.
+    def set_skills_enabled(self, names: list[str], enabled: bool) -> int:
+        """Set the enabled/hidden state for multiple skills.
 
         Args:
-            names: List of ingredient names to update
+            names: List of skill names to update
             enabled: True to enable (show), False to hide
 
         Returns:
-            Number of ingredients actually updated
+            Number of skills actually updated
         """
         registry = self._load_registry()
         updated = 0
 
         for name in names:
-            if name not in registry.ingredients:
-                logger.warning("ingredient_not_found_during_bulk", name=name)
+            if name not in registry.skills:
+                logger.warning("skill_not_found_during_bulk", name=name)
                 continue
 
-            old = registry.ingredients[name]
+            old = registry.skills[name]
             if old.is_enabled != enabled:
-                registry.ingredients[name] = Ingredient(
+                registry.skills[name] = Skill(
                     name=old.name,
                     path=old.path,
                     description=old.description,
@@ -272,46 +286,46 @@ class RegistryService:
 
         return updated
 
-    def update_ingredient_path(self, name: str, new_path: Path) -> None:
-        """Update the path for an existing ingredient.
+    def update_skill_path(self, name: str, new_path: Path) -> None:
+        """Update the path for an existing skill.
 
         Args:
-            name: Name of the ingredient to update
-            new_path: New path for the ingredient
+            name: Name of the skill to update
+            new_path: New path for the skill
 
         Raises:
-            KeyError: If ingredient doesn't exist
+            KeyError: If skill doesn't exist
             FileNotFoundError: If new path doesn't exist
         """
         registry = self._load_registry()
 
-        if name not in registry.ingredients:
-            logger.error("ingredient_not_found", name=name)
-            raise KeyError(f"Ingredient not found: {name}")
+        if name not in registry.skills:
+            logger.error("skill_not_found", name=name)
+            raise KeyError(f"Skill not found: {name}")
 
         absolute_path = self.repo_root / new_path
         if not absolute_path.exists():
             logger.error("new_path_not_found", path=str(new_path))
             raise FileNotFoundError(f"New path doesn't exist: {new_path}")
 
-        # Update the ingredient
-        old_ingredient = registry.ingredients[name]
-        registry.ingredients[name] = Ingredient(
-            name=old_ingredient.name,
+        # Update the skill
+        old_skill = registry.skills[name]
+        registry.skills[name] = Skill(
+            name=old_skill.name,
             path=new_path,
-            description=old_ingredient.description,
-            type=old_ingredient.type,
-            major=old_ingredient.major,
-            minor=old_ingredient.minor,
-            basename=old_ingredient.basename,
-            is_enabled=old_ingredient.is_enabled,
+            description=old_skill.description,
+            type=old_skill.type,
+            major=old_skill.major,
+            minor=old_skill.minor,
+            basename=old_skill.basename,
+            is_enabled=old_skill.is_enabled,
         )
         self._save_registry()
 
         logger.info(
-            "ingredient_path_updated",
+            "skill_path_updated",
             name=name,
-            old_path=str(old_ingredient.path),
+            old_path=str(old_skill.path),
             new_path=str(new_path),
         )
 
@@ -343,40 +357,39 @@ class RegistryService:
                 result.errors.append(f"Directory not found: {directory}")
                 continue
 
-            # Scan for markdown files
-            for md_file in dir_path.rglob("*.md"):
-                relative_path = md_file.relative_to(self.repo_root)
+            # Scan for markdown and YAML files
+            for pattern in ("*.md", "*.yaml", "*.yml"):
+                for skill_file in dir_path.rglob(pattern):
+                    relative_path = skill_file.relative_to(self.repo_root)
 
-                try:
-                    name = self._derive_ingredient_name(relative_path)
-                    found_files.add(name)
+                    try:
+                        name = self._derive_skill_name(relative_path)
+                        found_files.add(name)
 
-                    if name in registry.ingredients:
-                        # Check if path changed
-                        existing = registry.ingredients[name]
-                        if existing.path != relative_path:
-                            self.update_ingredient_path(name, relative_path)
-                            result.updated += 1
-                    else:
-                        # Add new ingredient
-                        self.add_ingredient(relative_path)
-                        result.added += 1
+                        if name in registry.skills:
+                            # Check if path changed
+                            existing = registry.skills[name]
+                            if existing.path != relative_path:
+                                self.update_skill_path(name, relative_path)
+                                result.updated += 1
+                        else:
+                            # Add new skill
+                            self.add_skill(relative_path)
+                            result.added += 1
 
-                except ValueError as e:
-                    # Invalid filename pattern, skip
-                    result.errors.append(f"Skipped {relative_path}: {e}")
+                    except ValueError as e:
+                        # Invalid filename pattern, skip
+                        result.errors.append(f"Skipped {relative_path}: {e}")
 
         # Check for removed files
-        missing_ingredients = [
-            name for name in registry.ingredients if name not in found_files
-        ]
-        result.removed = len(missing_ingredients)
+        missing_skills = [name for name in registry.skills if name not in found_files]
+        result.removed = len(missing_skills)
 
         # Log removed files and delete them
-        for name in missing_ingredients:
-            del registry.ingredients[name]
+        for name in missing_skills:
+            del registry.skills[name]
             logger.warning(
-                "ingredient_removed_during_refresh",
+                "skill_removed_during_refresh",
                 name=name,
             )
 
@@ -397,13 +410,13 @@ class RegistryService:
         self,
         path: Path,
     ) -> tuple[str, int, int, str]:
-        """Extract metadata from ingredient filename.
+        """Extract metadata from skill filename.
 
         Supports both versioned (TYPE-MAJOR-MINOR-Name.md) and
         version-less (TYPE--Name.md) patterns.
 
         Args:
-            path: Path to the ingredient file
+            path: Path to the skill file
 
         Returns:
             Tuple of (type, major, minor, basename)
@@ -411,10 +424,15 @@ class RegistryService:
         Raises:
             ValueError: If filename doesn't match expected pattern
         """
+        # Use naming service if available
+        if self.naming_service is not None:
+            return self.naming_service.extract_metadata(path)
+
+        # Legacy fallback for backward compatibility
         filename = path.name
 
         # Try versioned pattern first
-        match = VERSIONED_PATTERN.match(filename)
+        match = _VERSIONED_PATTERN.match(filename)
         if match:
             return (
                 match.group("type"),
@@ -424,7 +442,7 @@ class RegistryService:
             )
 
         # Try version-less pattern
-        match = VERSIONLESS_PATTERN.match(filename)
+        match = _VERSIONLESS_PATTERN.match(filename)
         if match:
             return (
                 match.group("type"),
@@ -434,6 +452,51 @@ class RegistryService:
             )
 
         raise ValueError(f"Filename doesn't match expected pattern: {filename}")
+
+    def _extract_metadata_intelligently(
+        self,
+        path: Path,
+    ) -> tuple[str, int, int, str, SkillStatus, str | None]:
+        """Extract metadata using multiple strategies.
+
+        Returns:
+            Tuple of (type, major, minor, basename, status, status_detail)
+        """
+        absolute_path = self.repo_root / path
+
+        # Check if file is readable
+        try:
+            _ = absolute_path.read_text(encoding="utf-8")
+        except Exception as e:
+            # File unreadable - parse_error
+            return (
+                "Uncategorized",
+                0,
+                0,
+                path.stem,
+                SkillStatus.PARSE_ERROR,
+                f"Cannot read file: {e}",
+            )
+
+        # Strategy 1: strict using existing extraction logic
+        try:
+            t, M, m, b = self._extract_metadata(path)
+            # If successful, it's valid
+            return t, M, m, b, SkillStatus.VALID, None
+        except ValueError as e:
+            # Fallback to permissive mode
+            error_msg = str(e)
+
+        # Strategy 2-4: Fallback defaults for now
+        # Future: Implement H1/Frontmatter extraction here
+        return (
+            "Uncategorized",
+            0,
+            0,
+            path.stem,
+            SkillStatus.UNRECOGNIZED,
+            f"Pattern mismatch: {error_msg}",
+        )
 
     def _extract_h1_heading(self, path: Path) -> str:
         """Extract H1 heading from markdown file as description.
@@ -447,48 +510,109 @@ class RegistryService:
         try:
             content = path.read_text(encoding="utf-8")
             for line in content.splitlines():
-                line = line.strip()
                 if line.startswith("# "):
                     return line[2:].strip()
-        except Exception as e:
-            logger.warning(
-                "failed_to_extract_h1",
-                path=str(path),
-                error=str(e),
-            )
-
-        # Fallback to filename without extension
+        except Exception:
+            pass
         return path.stem
 
-    def _derive_ingredient_name(self, path: Path) -> str:
-        """Derive ingredient name from file path.
-
-        Uses the filename without extension as the ingredient name.
+    def rename_skill(
+        self,
+        current_name: str,
+        new_basename: str,
+        new_type: str,
+        new_major: int,
+        new_minor: int,
+    ) -> None:
+        """Rename a skill file and update the registry.
 
         Args:
-            path: Path to the ingredient file
+            current_name: Current name of the skill (key in registry)
+            new_basename: New basename for the file
+            new_type: New type (e.g., GUIDE, SPACE)
+            new_major: New major version
+            new_minor: New minor version
+
+        Raises:
+            KeyError: If skill not found
+            ValueError: If new filename already exists or is invalid
+            OSError: If rename operation fails
+        """
+        skill = self.get_skill(current_name)
+        if not skill:
+            raise KeyError(f"Skill not found: {current_name}")
+
+        # Generate new filename
+        if self.naming_service:
+            new_filename = self.naming_service.make_versioned(
+                basename=new_basename,
+                major=new_major,
+                minor=new_minor,
+                type_str=new_type,
+            )
+        else:
+            # Fallback using hardcoded pattern
+            new_filename = f"{new_type}-{new_major}-{new_minor}-{new_basename}.md"
+
+        old_path = self.repo_root / skill.path
+        new_path = old_path.parent / new_filename
+
+        if new_path.exists() and new_path != old_path:
+            raise ValueError(f"File already exists: {new_filename}")
+
+        # Rename file on disk
+        try:
+            old_path.rename(new_path)
+            logger.info(
+                "file_renamed",
+                old=str(old_path),
+                new=str(new_path),
+            )
+        except OSError as e:
+            logger.error(
+                "rename_failed",
+                old=str(old_path),
+                new=str(new_path),
+                error=str(e),
+            )
+            raise
+
+        # Force a refresh to update internal state
+        # We need to scan the directory where the file lives.
+        try:
+            relative_dir = old_path.parent.relative_to(self.repo_root)
+            self.refresh_registry([str(relative_dir)])
+        except Exception as e:
+            logger.error("registry_refresh_failed_after_rename", error=str(e))
+            # We don't raise here because the rename succeeded on disk
+
+    def _derive_skill_name(self, path: Path) -> str:
+        """Derive skill name from file path.
+
+        Uses the filename without extension as the skill name.
+
+        Args:
+            path: Path to the skill file
 
         Returns:
-            Derived ingredient name
+            Derived skill name
         """
         return path.stem
 
-    def find_ingredients_by_basename(self, basename: str) -> list[Ingredient]:
-        """Find all ingredients with the same basename.
+    def find_skills_by_basename(self, basename: str) -> list[Skill]:
+        """Find all skills with the same basename.
 
-        Useful for finding all versions of an ingredient.
+        Useful for finding all versions of a skill.
 
         Args:
             basename: The basename to search for
 
         Returns:
-            List of ingredients with matching basename, sorted by version
+            List of skills with matching basename, sorted by version
         """
         registry = self._load_registry()
         matches = [
-            ingredient
-            for ingredient in registry.ingredients.values()
-            if ingredient.basename == basename
+            skill for skill in registry.skills.values() if skill.basename == basename
         ]
         return sorted(
             matches,
@@ -496,14 +620,14 @@ class RegistryService:
             reverse=True,
         )
 
-    def get_latest_version(self, basename: str) -> Ingredient | None:
-        """Get the latest version of an ingredient by basename.
+    def get_latest_version(self, basename: str) -> Skill | None:
+        """Get the latest version of a skill by basename.
 
         Args:
             basename: The basename to search for
 
         Returns:
-            Latest version ingredient, or None if not found
+            Latest version skill, or None if not found
         """
-        matches = self.find_ingredients_by_basename(basename)
+        matches = self.find_skills_by_basename(basename)
         return matches[0] if matches else None

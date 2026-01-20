@@ -4,36 +4,36 @@ from __future__ import annotations
 
 from typing import Any
 
-from models.ingredient import Ingredient
+from models.skill import Skill
 
 
 class RegistrySchema:
     """Registry structure with validation.
 
     Represents the complete registry.json structure including schema version
-    and ingredient catalog.
+    and skill catalog.
 
     Attributes:
         version: Schema version string (e.g., "1.0")
-        ingredients: Dictionary mapping ingredient names to Ingredient objects
+        skills: Dictionary mapping skill names to Skill objects
     """
 
-    def __init__(self, version: str, ingredients: dict[str, Ingredient]) -> None:
+    def __init__(self, version: str, skills: dict[str, Skill]) -> None:
         """Initialize registry schema.
 
         Args:
             version: Schema version string
-            ingredients: Dictionary of ingredient name -> Ingredient
+            skills: Dictionary of skill name -> Skill
         """
         self.version = version
-        self.ingredients = ingredients
+        self.skills = skills
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> RegistrySchema:
         """Create RegistrySchema from dictionary.
 
         Args:
-            data: Dictionary containing schema and ingredients
+            data: Dictionary containing schema and skills
 
         Returns:
             RegistrySchema instance
@@ -46,41 +46,42 @@ class RegistrySchema:
         if not version:
             raise ValueError("Missing 'version' field in registry schema")
 
-        ingredients_data = data.get("ingredients", {})
-        ingredients: dict[str, Ingredient] = {}
+        # Support both "skills" and legacy "ingredients" keys
+        skills_data = data.get("skills", data.get("ingredients", {}))
+        skills: dict[str, Skill] = {}
 
-        # Handle both list and dictionary formats for ingredients
-        if isinstance(ingredients_data, list):
+        # Handle both list and dictionary formats for skills
+        if isinstance(skills_data, list):
             # Convert list to dictionary using 'name' field as key
-            for item in ingredients_data:
+            for item in skills_data:
                 if not isinstance(item, dict):
-                    raise ValueError(f"Invalid ingredient format: {item}")
+                    raise ValueError(f"Invalid skill format: {item}")
 
                 name = item.get("name")
                 if not name:
-                    raise ValueError(f"Ingredient missing 'name' field: {item}")
+                    raise ValueError(f"Skill missing 'name' field: {item}")
 
                 try:
-                    ingredients[name] = Ingredient.from_dict(item)
+                    skills[name] = Skill.from_dict(item)
                 except KeyError as e:
                     raise ValueError(
-                        f"Ingredient '{name}' is missing required field: {e}"
+                        f"Skill '{name}' is missing required field: {e}"
                     ) from e
         else:
             # Dictionary format (expected)
-            for name, ingredient_data in ingredients_data.items():
+            for name, skill_data in skills_data.items():
                 # Ensure name is consistent
-                if "name" not in ingredient_data:
-                    ingredient_data["name"] = name
+                if "name" not in skill_data:
+                    skill_data["name"] = name
 
                 try:
-                    ingredients[name] = Ingredient.from_dict(ingredient_data)
+                    skills[name] = Skill.from_dict(skill_data)
                 except KeyError as e:
                     raise ValueError(
-                        f"Ingredient '{name}' is missing required field: {e}"
+                        f"Skill '{name}' is missing required field: {e}"
                     ) from e
 
-        return RegistrySchema(version=version, ingredients=ingredients)
+        return RegistrySchema(version=version, skills=skills)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert registry schema to dictionary.
@@ -91,8 +92,7 @@ class RegistrySchema:
         return {
             "version": self.version,
             "ingredients": {
-                name: ingredient.to_dict()
-                for name, ingredient in self.ingredients.items()
+                name: skill.to_dict() for name, skill in self.skills.items()
             },
         }
 
@@ -105,9 +105,8 @@ class RegistrySchema:
         if not self.version:
             raise ValueError("Registry schema requires a version")
 
-        for name, ingredient in self.ingredients.items():
-            if ingredient.name != name:
+        for name, skill in self.skills.items():
+            if skill.name != name:
                 raise ValueError(
-                    f"Ingredient name mismatch: key='{name}', "
-                    f"ingredient.name='{ingredient.name}'"
+                    f"Skill name mismatch: key='{name}', " f"skill.name='{skill.name}'"
                 )

@@ -77,7 +77,7 @@ class AgentConfig:
             ValueError: If any ingredient reference is invalid
         """
         missing_ingredients = [
-            name for name in self.ingredients if name not in registry.ingredients
+            name for name in self.ingredients if name not in registry.skills
         ]
 
         if missing_ingredients:
