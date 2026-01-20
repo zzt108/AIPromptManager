@@ -189,15 +189,18 @@ RegistryService "1" *-- "*" Ingredient
 ## 🔧 Features
 
 ### Knowledge Base Panel
-- View all available ingredients
+
+- View all available skills (ingredients)
 - **Filter** by name or path (real-time search)
-- **Sort** by clicking column headers (Type, Name, Path)
+- **Sort** by clicking column headers (Type, Name, Path, Status)
 - **Toggle Visibility** with context menu (Hide/Show)
 - **Quick View** popup for previewing content
 - **Show Hidden** checkbox to reveal greyed-out items
-- Context actions: Show in Explorer, Open with Editor
+- **Status Indicators**: ✓ Valid, ⚠️ Unrecognized, ❌ Parse Error
+- Context actions: Show in Explorer, Open with Editor, Open with Notepad
 
 ### Profession Designer
+
 - **Available** list shows all enabled ingredients
 - **Selected** list shows chosen ingredients for this profession
 - Use arrow buttons to move items between lists
@@ -205,6 +208,7 @@ RegistryService "1" *-- "*" Ingredient
 - Save selections as `agent.config.json`
 
 ### Agent Onboarding
+
 - Select a profession config file (JSON)
 - Choose an output directory
 - **Build Agent** to create `.agent/rules/` folder
@@ -214,11 +218,22 @@ RegistryService "1" *-- "*" Ingredient
 - External diff tool integration (P4Merge, Beyond Compare)
 
 ### Version Management
+
 - Versioned source files (e.g., `GUIDE-1-0-Name.md`)
 - Version-less output files (e.g., `GUIDE--Name.md`)
-- Automatic metadata extraction from frontmatter
+- **Intelligent Metadata Extraction** using priority system:
+  1. Filename pattern matching
+  2. H1 heading extraction
+  3. YAML frontmatter parsing
+  4. Sensible defaults for unrecognized files
+
+### File Format Support
+
+- Markdown files (`.md`)
+- YAML files (`.yaml`, `.yml`)
 
 ### Safety Features
+
 - Timestamp-based change detection
 - User confirmation before overwrites
 - Interactive dialogs for conflict resolution
@@ -231,7 +246,7 @@ RegistryService "1" *-- "*" Ingredient
 - **Python 3.10+** with strict type hints (`mypy --strict` compliant)
 - **Plain tkinter** for native cross-platform UI
 - **structlog** for structured logging
-- **pytest** for testing (81 tests, 100% pass rate)
+- **pytest** for testing (201 tests, 100% pass rate)
 - **Apache 2.0 License**
 
 ---
@@ -250,6 +265,7 @@ python src/main.py --data-dir ../MyPrompts
 ```
 
 **Data Directory Requirements**:
+
 - Must contain `registry.json` (created automatically if missing)
 - Prompts should have frontmatter with `type` and `version`
 - Optional `.config/conventions.json` for naming patterns
@@ -274,6 +290,7 @@ sample_data/
 ```
 
 **Sample Frontmatter**:
+
 ```markdown
 ---
 version: "1.0"
@@ -300,7 +317,7 @@ mypy --strict src/
 black src/ tests/
 ```
 
-**Test Coverage**: 81 tests covering models, repositories, services, and UI logic.
+**Test Coverage**: 201 tests covering models, repositories, services, and UI logic.
 
 ---
 
@@ -320,6 +337,6 @@ Copyright 2026 zzt108
 
 ## 🔗 Links
 
-- **Repository**: https://github.com/zzt108/AIPromptManager
-- **Issues**: https://github.com/zzt108/AIPromptManager/issues
+- **Repository**: <https://github.com/zzt108/AIPromptManager>
+- **Issues**: <https://github.com/zzt108/AIPromptManager/issues>
 - **Installation**: See [README.md](../README.md)
