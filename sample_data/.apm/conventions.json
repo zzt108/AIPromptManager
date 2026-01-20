@@ -2,12 +2,15 @@
   "file_naming": {
     "pattern": "{TYPE}-{VERSION}-{DESCRIPTION}",
     "version_format": "X-Y",
-    "supported_types": ["GUIDE", "SPACE", "PROMPT", "WORKFLOW"],
+    "supported_types": ["GUIDE", "SPACE", "PROMPT", "WORKFLOW", "SKILL", "DOMAIN"],
     "output_pattern": "{TYPE}--{DESCRIPTION}",
     "type_separator": "_"
   },
   "notes": [
-    "This is the conventions.json for AIPromptManager sample data.",
-    "type_separator: '_' allows subtypes like GUIDE_CC (Coding Convention)"
+    "AIPrompts repository conventions for AI Prompt Manager",
+    "VERSION: semantic (1-2) or date-based (260120) both work",
+    "SKILL is alias for GUIDE (reusable knowledge)",
+    "DOMAIN is alias for SPACE (project-specific context)",
+    "type_separator '_' allows subtypes like GUIDE_CC (Coding Convention)"
   ]
 }
