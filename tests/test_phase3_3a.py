@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 from services.registry_service import RegistryService
 from repositories.registry_repository import RegistryRepository
+from models.skill_status import SkillStatus
 
 
 class TestIntelligentExtraction:
@@ -39,7 +40,7 @@ class TestIntelligentExtraction:
         # The skill name derived from 'random_notes.md' should be 'random_notes'
         skill = service.get_skill("random_notes")
         assert skill is not None
-        assert skill.status == "unrecognized"
+        assert skill.status == SkillStatus.UNRECOGNIZED
         assert skill.status_detail is not None
         assert "Pattern mismatch" in skill.status_detail
 
@@ -73,7 +74,7 @@ class TestIntelligentExtraction:
 
         skill = service.get_skill("GUIDE-1-0-Setup")
         assert skill is not None
-        assert skill.status == "valid"
+        assert skill.status == SkillStatus.VALID
         assert skill.status_detail is None
 
     def test_intelligent_extraction_defaults(self, setup_service):
@@ -83,6 +84,6 @@ class TestIntelligentExtraction:
 
         t, M, m, b, status, detail = service._extract_metadata_intelligently(path)
 
-        assert status == "unrecognized"
+        assert status == SkillStatus.PARSE_ERROR  # File doesn't exist
         assert b == "file"
         assert t == "Uncategorized"

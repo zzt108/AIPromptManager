@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Callable
 import structlog
 
 from ui.dialogs.rename_dialog import RenameDialog
+from models.skill_status import SkillStatus
 
 if TYPE_CHECKING:
     from services.registry_service import RegistryService
@@ -47,9 +48,9 @@ class RegistryPanel(ttk.Frame):
         super().__init__(parent)
         self._service = service
         self._status_callback = status_callback
-        self._all_items: list[tuple[str, str, str, str, bool]] = (
-            []
-        )  # Cache for filtering
+        self._all_items: list[
+            tuple[str, str, str, str, bool, str, str | None]
+        ] = []  # Cache for filtering
 
         self._setup_ui()
         self._setup_context_menu()
@@ -105,7 +106,7 @@ class RegistryPanel(ttk.Frame):
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
 
-        columns = ("type", "name", "version", "path")
+        columns = ("status", "type", "name", "version", "path", "details")
         self.tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -113,22 +114,32 @@ class RegistryPanel(ttk.Frame):
             selectmode="extended",  # Enable multi-selection
         )
 
+        self.tree.column("status", width=50, minwidth=40, anchor=tk.CENTER)
         self.tree.column("type", width=80, minwidth=60)
         self.tree.column("name", width=200, minwidth=100)
-        self.tree.column("version", width=80, minwidth=50, anchor=tk.CENTER)
-        self.tree.column("path", width=400, minwidth=200)
+        self.tree.column("version", width=60, minwidth=50, anchor=tk.CENTER)
+        self.tree.column("path", width=300, minwidth=200)
+        self.tree.column("details", width=200, minwidth=100)
 
         # Configure sortable headings
-        for col in columns:
+        self.tree.heading(
+            "status",
+            text="St",
+            command=lambda: self._sort_column("status", False),
+        )
+        for col in ("type", "name", "version", "path", "details"):
             self.tree.heading(
                 col,
                 text=col.capitalize(),
-                anchor=tk.W if col != "version" else tk.CENTER,
+                anchor=tk.W if col not in ("version",) else tk.CENTER,
                 command=lambda c=col: self._sort_column(c, False),
             )
 
-        # Configure tag styles for hidden items
+        # Configure tag styles
         self.tree.tag_configure("hidden", foreground="gray")
+        self.tree.tag_configure("status_valid", foreground="black")
+        self.tree.tag_configure("status_unrecognized", foreground="#e67e22")  # Orange
+        self.tree.tag_configure("status_parse_error", foreground="#c0392b")  # Red
 
         # Scrollbars
         vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -210,6 +221,8 @@ class RegistryPanel(ttk.Frame):
                     version_str,
                     str(skill.path),
                     skill.is_enabled,
+                    skill.status,
+                    skill.status_detail,
                 )
             )
 
@@ -230,26 +243,45 @@ class RegistryPanel(ttk.Frame):
 
         # Re-populate with filtered items
         show_hidden = self.show_hidden_var.get()
-        for type_val, name, version, path, is_enabled in self._all_items:
+        for (
+            type_val,
+            name,
+            version,
+            path,
+            is_enabled,
+            status,
+            details,
+        ) in self._all_items:
             # Respect "Show Hidden" toggle
             if not is_enabled and not show_hidden:
                 continue
 
-            # Filter on name AND path
-            if (
-                filter_text
-                and filter_text not in name.lower()
-                and filter_text not in path.lower()
-            ):
+            # Filter on name, path, OR details
+            search_content = f"{name} {path} {details or ''}".lower()
+            if filter_text and filter_text not in search_content:
                 continue
 
-            tags = () if is_enabled else ("hidden",)
+            # Determine tags
+            tags = []
+            if not is_enabled:
+                tags.append("hidden")
+
+            # Status tag for coloring (use .value to get string)
+            tags.append(f"status_{status.value}")
+
+            # Determine icon
+            icon = "✓"
+            if status == SkillStatus.UNRECOGNIZED:
+                icon = "⚠️"
+            elif status == SkillStatus.PARSE_ERROR:
+                icon = "❌"
+
             self.tree.insert(
                 "",
                 tk.END,
                 iid=name,
-                values=(type_val, name, version, path),
-                tags=tags,
+                values=(icon, type_val, name, version, path, details or ""),
+                tags=tuple(tags),
             )
 
     def _clear_filter(self) -> None:

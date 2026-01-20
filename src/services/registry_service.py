@@ -10,6 +10,7 @@ import structlog
 
 from models.conventions_schema import ConventionsSchema
 from models.skill import Skill
+from models.skill_status import SkillStatus
 from models.registry_schema import RegistrySchema
 from models.service_results import RefreshResult
 
@@ -454,17 +455,33 @@ class RegistryService:
     def _extract_metadata_intelligently(
         self,
         path: Path,
-    ) -> tuple[str, int, int, str, str, str | None]:
+    ) -> tuple[str, int, int, str, SkillStatus, str | None]:
         """Extract metadata using multiple strategies.
 
         Returns:
             Tuple of (type, major, minor, basename, status, status_detail)
         """
+        absolute_path = self.repo_root / path
+
+        # Check if file is readable
+        try:
+            _ = absolute_path.read_text(encoding="utf-8")
+        except Exception as e:
+            # File unreadable - parse_error
+            return (
+                "Uncategorized",
+                0,
+                0,
+                path.stem,
+                SkillStatus.PARSE_ERROR,
+                f"Cannot read file: {e}",
+            )
+
         # Strategy 1: strict using existing extraction logic
         try:
             t, M, m, b = self._extract_metadata(path)
             # If successful, it's valid
-            return t, M, m, b, "valid", None
+            return t, M, m, b, SkillStatus.VALID, None
         except ValueError as e:
             # Fallback to permissive mode
             error_msg = str(e)
@@ -476,7 +493,7 @@ class RegistryService:
             0,
             0,
             path.stem,
-            "unrecognized",
+            SkillStatus.UNRECOGNIZED,
             f"Pattern mismatch: {error_msg}",
         )
 

@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from models.skill_status import SkillStatus
+
 
 @dataclass
 class Skill:
@@ -23,6 +25,8 @@ class Skill:
         minor: Minor version number
         basename: Core name without version suffix
         is_enabled: Whether the skill is visible in Profession Designer
+        status: Recognition status ("valid", "unrecognized", "parse_error")
+        status_detail: Optional detail message explaining the status
     """
 
     name: str
@@ -33,7 +37,7 @@ class Skill:
     minor: int
     basename: str
     is_enabled: bool = True
-    status: str = "valid"
+    status: SkillStatus = SkillStatus.VALID
     status_detail: str | None = None
 
     @staticmethod
@@ -59,7 +63,7 @@ class Skill:
             minor=int(data["minor"]),
             basename=data["basename"],
             is_enabled=data.get("is_enabled", True),
-            status=data.get("status", "valid"),
+            status=SkillStatus(data.get("status", "valid")),
             status_detail=data.get("status_detail"),
         )
 
@@ -78,6 +82,6 @@ class Skill:
             "minor": self.minor,
             "basename": self.basename,
             "is_enabled": self.is_enabled,
-            "status": self.status,
+            "status": self.status.value,
             "status_detail": self.status_detail,
         }

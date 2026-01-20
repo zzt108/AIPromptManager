@@ -70,8 +70,9 @@ class TestRegistryPanel:
 
         # Check first item values
         first_values = panel.tree.item(children[0], "values")
-        assert first_values[0] == "GUIDE"  # Type
-        assert first_values[1] == "GUIDE-1-0-General"  # Name
+        # Columns: status (icon), type, name, version, path, details
+        assert first_values[1] == "GUIDE"  # Type
+        assert first_values[2] == "GUIDE-1-0-General"  # Name
 
     def test_status_callback_called_after_refresh(self, tk_root: tk.Tk) -> None:
         """Test that status callback is invoked with skill count."""
