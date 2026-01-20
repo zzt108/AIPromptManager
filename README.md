@@ -34,7 +34,7 @@ python src/main.py --data-dir c:\Path\To\YourPrompts
 ## ✨ Features
 
 - **Knowledge Base** panel with filtering, sorting, and visibility toggles
-- **Profession Designer** for visual ingredient selection using Available/Selected lists
+- **Profession Designer** for visual skill selection using Available/Selected lists
 - **Agent Onboarding** builder for generating `agent.config.json` files
 - **Intelligent Metadata Extraction** from filename patterns, H1 headings, or YAML frontmatter
 - **Status Indicators** (✓/⚠️/❌) showing file validity and parse status
@@ -46,7 +46,7 @@ python src/main.py --data-dir c:\Path\To\YourPrompts
 
 AIPromptManager uses clean architecture with separation of concerns:
 
-- **Models**: Data structures (Ingredient, RegistrySchema, AgentConfig)
+- **Models**: Data structures (Skill, RegistrySchema, AgentConfig)
 - **Repositories**: Data persistence (JSON file operations)
 - **Services**: Business logic (RegistryService, AgentBuilder)
 - **UI**: Tkinter-based desktop interface

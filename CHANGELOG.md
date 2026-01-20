@@ -43,12 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Features
 
 - **Knowledge Base Panel** with sortable columns, filtering, and visibility toggles
-- **Profession Designer** with Available/Selected list management for ingredients
+- **Profession Designer** with Available/Selected list management for skills
 - **Agent Onboarding** builder for generating `agent.config.json` files
 - **Registry Management** with automatic scanning and metadata extraction
 - **File Sync** with bidirectional timestamp comparison and conflict detection
 - **Interactive Dialogs** for handling update available and local changes scenarios
-- **Quick View** popups for inspecting ingredient contents
+- **Quick View** popups for inspecting skill contents
 - **Context Menu** actions: Show in Explorer, Open with Default Editor
 - **Visibility Management** with persistent state in registry.json
 - **Multi-select Operations** for bulk hide/show actions

@@ -104,12 +104,13 @@ package "Service Layer" {
 }
 
 package "Model Layer" {
-  class Ingredient {
+  class Skill {
     + name : str
     + type : str
     + path : Path
     + is_enabled : bool
     + version : str
+    + status : SkillStatus
   }
 }
 
@@ -117,7 +118,7 @@ MainWindow *-- RegistryPanel
 MainWindow *-- ConfigPanel
 RegistryPanel --> RegistryService
 ConfigPanel --> RegistryService
-RegistryService "1" *-- "*" Ingredient
+RegistryService "1" *-- "*" Skill
 @enduml
 ```
 
@@ -134,7 +135,7 @@ RegistryService "1" *-- "*" Ingredient
 1. Clone AIPromptManager
 2. Run with your data directory: `python src/main.py --data-dir c:\MyPrompts`
 3. The tool catalogs your prompts in the Knowledge Base
-4. Use Profession Designer to create ingredient selections
+4. Use Profession Designer to create skill selections
 5. Build agent configurations for different projects
 
 ### Use Case 2: Starting from Sample Data
@@ -179,8 +180,8 @@ RegistryService "1" *-- "*" Ingredient
 
 | Component | Description |
 |-----------|-------------|
-| `registry.json` | Catalog of all ingredients (name, path, description, visibility) |
-| `agent.config.json` | Per-project configuration specifying which ingredients to include |
+| `registry.json` | Catalog of all skills (name, path, description, visibility) |
+| `agent.config.json` | Per-project configuration specifying which skills to include |
 | `.agent/rules/` | Built output folder with version-less filenames |
 | `.config/conventions.json` | File naming patterns (in data repository) |
 
@@ -190,7 +191,7 @@ RegistryService "1" *-- "*" Ingredient
 
 ### Knowledge Base Panel
 
-- View all available skills (ingredients)
+- View all available skills
 - **Filter** by name or path (real-time search)
 - **Sort** by clicking column headers (Type, Name, Path, Status)
 - **Toggle Visibility** with context menu (Hide/Show)
@@ -201,10 +202,10 @@ RegistryService "1" *-- "*" Ingredient
 
 ### Profession Designer
 
-- **Available** list shows all enabled ingredients
-- **Selected** list shows chosen ingredients for this profession
+- **Available** list shows all enabled skills
+- **Selected** list shows chosen skills for this profession
 - Use arrow buttons to move items between lists
-- Hidden ingredients are automatically excluded
+- Hidden skills are automatically excluded
 - Save selections as `agent.config.json`
 
 ### Agent Onboarding
