@@ -579,7 +579,7 @@ class ConfigPanel(ttk.Frame):
                 if platform.system() == "Darwin":
                     cmd = ["open", str(file_path)]
                 subprocess.run(cmd, check=False)
-            
+
             logger.info("open_with_notepad", path=str(file_path))
         except Exception as e:
             logger.error("open_with_notepad_error", error=str(e))
