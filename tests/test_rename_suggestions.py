@@ -40,7 +40,9 @@ class TestRenameSuggestions:
             status=SkillStatus.UNRECOGNIZED,
         )
 
-    def test_suggestion_from_h1(self, setup_service):
+    def test_suggestion_from_h1(
+        self, setup_service: tuple[RegistryService, Path]
+    ) -> None:
         service, root = setup_service
         skill = self.create_skill(
             root, "random_file.md", "# Setup Guide\n\nSome content"
@@ -60,7 +62,9 @@ class TestRenameSuggestions:
             h1_sugg["type"] == "GUIDE"
         )  # Defaulted because current type is Uncategorized
 
-    def test_suggestion_from_yaml(self, setup_service):
+    def test_suggestion_from_yaml(
+        self, setup_service: tuple[RegistryService, Path]
+    ) -> None:
         service, root = setup_service
         yaml_content = """---
 type: PROMPT
@@ -83,7 +87,9 @@ name: "Awesome Generator"
         assert yaml_sugg["minor"] == 1
         assert yaml_sugg["basename"] == "AwesomeGenerator"
 
-    def test_suggestion_clean_stem(self, setup_service):
+    def test_suggestion_clean_stem(
+        self, setup_service: tuple[RegistryService, Path]
+    ) -> None:
         service, root = setup_service
         skill = self.create_skill(root, "my-cool_script.md", "No metadata")
 
@@ -96,7 +102,9 @@ name: "Awesome Generator"
         assert stem_sugg is not None
         assert stem_sugg["basename"] == "MyCoolScript"
 
-    def test_yaml_uncategorized_type_defaults_to_guide(self, setup_service):
+    def test_yaml_uncategorized_type_defaults_to_guide(
+        self, setup_service: tuple[RegistryService, Path]
+    ) -> None:
         service, root = setup_service
         content = "---\ntype: Uncategorized\nname: Foo\n---"
         skill = self.create_skill(root, "test.md", content)
@@ -108,7 +116,9 @@ name: "Awesome Generator"
         assert yaml_sugg is not None
         assert yaml_sugg["type"] == "GUIDE"  # Should default to GUIDE
 
-    def test_h1_already_matches_stem_ignored(self, setup_service):
+    def test_h1_already_matches_stem_ignored(
+        self, setup_service: tuple[RegistryService, Path]
+    ) -> None:
         service, root = setup_service
         # If H1 is just "MyFile" and filename is "MyFile.md", H1 suggestion is redundant or filtered
         # Logic says: if h1_text != skill.path.stem
