@@ -26,7 +26,7 @@ def make_skill_with_status(
 
 class TestRegistryPanelStatus:
 
-    def test_status_icons_and_tags(self, tk_root):
+    def test_status_icons_and_tags(self, tk_root: tk.Tk) -> None:
         mock_service = MagicMock()
 
         skills = [
@@ -62,7 +62,7 @@ class TestRegistryPanelStatus:
         assert err_item["values"][5] == "Bad YAML"
         assert "status_parse_error" in err_item["tags"]
 
-    def test_filter_includes_details(self, tk_root):
+    def test_filter_includes_details(self, tk_root: tk.Tk) -> None:
         mock_service = MagicMock()
         skills = [
             make_skill_with_status(

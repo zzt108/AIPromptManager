@@ -8,7 +8,7 @@ from models.skill_status import SkillStatus
 class TestIntelligentExtraction:
 
     @pytest.fixture
-    def setup_service(self, tmp_path):
+    def setup_service(self, tmp_path: Path) -> tuple[RegistryService, Path]:
         repo_root = tmp_path
         registry_path = tmp_path / "registry.json"
 
@@ -21,7 +21,9 @@ class TestIntelligentExtraction:
         )
         return service, repo_root
 
-    def test_refresh_tracks_unrecognized_file(self, setup_service):
+    def test_refresh_tracks_unrecognized_file(
+        self, setup_service: tuple[RegistryService, Path]
+    ) -> None:
         service, repo_root = setup_service
 
         # Create an invalid file
@@ -44,7 +46,9 @@ class TestIntelligentExtraction:
         assert skill.status_detail is not None
         assert "Pattern mismatch" in skill.status_detail
 
-    def test_refresh_tracks_valid_file(self, setup_service):
+    def test_refresh_tracks_valid_file(
+        self, setup_service: tuple[RegistryService, Path]
+    ) -> None:
         service, repo_root = setup_service
 
         # Create a valid file
@@ -77,7 +81,9 @@ class TestIntelligentExtraction:
         assert skill.status == SkillStatus.VALID
         assert skill.status_detail is None
 
-    def test_intelligent_extraction_defaults(self, setup_service):
+    def test_intelligent_extraction_defaults(
+        self, setup_service: tuple[RegistryService, Path]
+    ) -> None:
         # Verification of the _extract_metadata_intelligently method directly
         service, _ = setup_service
         path = Path("some/weird/file.md")
