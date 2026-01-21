@@ -12,3 +12,4 @@ class SkillStatus(str, Enum):
     VALID = "valid"
     UNRECOGNIZED = "unrecognized"
     PARSE_ERROR = "parse_error"
+    ARCHIVED = "archived"

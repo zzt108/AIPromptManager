@@ -25,6 +25,7 @@ _VERSIONED_PATTERN = re.compile(
     r"^(?P<type>[a-zA-Z0-9_]+)-(?P<major>\d+)-(?P<minor>\d+)-(?P<basename>.+)\.md$"
 )
 _VERSIONLESS_PATTERN = re.compile(r"^(?P<type>[a-zA-Z0-9_]+)--(?P<basename>.+)\.md$")
+ARCHIVE_DIR = ".archive"
 
 
 class RegistryService:
@@ -788,6 +789,159 @@ class RegistryService:
             key=lambda i: (i.major, i.minor),
             reverse=True,
         )
+
+    def archive_skills(self, skill_names: list[str]) -> int:
+        """Archive a list of skills.
+
+        Moves the files to the .archive/ directory and updates the registry status.
+
+        Args:
+            skill_names: List of skill names to archive
+
+        Returns:
+            Number of skills successfully archived
+        """
+        registry = self._load_registry()
+        archived_count = 0
+        archive_root = self.repo_root / ARCHIVE_DIR
+
+        for name in skill_names:
+            if name not in registry.skills:
+                logger.warning("skill_not_found_for_archive", name=name)
+                continue
+
+            skill = registry.skills[name]
+            if skill.status == SkillStatus.ARCHIVED:
+                logger.info("skill_already_archived", name=name)
+                continue
+
+            # Calculate paths
+            original_path = self.repo_root / skill.path
+            archive_path = archive_root / skill.path
+
+            if not original_path.exists():
+                logger.error("file_not_found_for_archive", path=str(original_path))
+                continue
+
+            if archive_path.exists():
+                logger.error("archive_destination_exists", path=str(archive_path))
+                # Skip to prevent overwriting existing archive
+                continue
+
+            # Ensure archive directory exists
+            archive_path.parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                # Move file
+                original_path.rename(archive_path)
+
+                # Update registry
+                new_relative_path = archive_path.relative_to(self.repo_root)
+                registry.skills[name] = Skill(
+                    name=skill.name,
+                    path=new_relative_path,
+                    description=skill.description,
+                    type=skill.type,
+                    major=skill.major,
+                    minor=skill.minor,
+                    basename=skill.basename,
+                    is_enabled=False,  # Implicitly hidden
+                    status=SkillStatus.ARCHIVED,
+                    status_detail=None,
+                    modified_at=archive_path.stat().st_mtime,
+                )
+                archived_count += 1
+                logger.info("skill_archived", name=name, path=str(archive_path))
+
+            except OSError as e:
+                logger.error("archive_failed", name=name, error=str(e))
+
+        if archived_count > 0:
+            self._save_registry()
+
+        return archived_count
+
+    def restore_skills(self, skill_names: list[str]) -> int:
+        """Restore a list of skills from archive.
+
+        Moves the files back to their original location (stripping .archive prefix)
+        and updates the registry status.
+
+        Args:
+            skill_names: List of skill names to restore
+
+        Returns:
+            Number of skills successfully restored
+        """
+        registry = self._load_registry()
+        restored_count = 0
+        archive_root = self.repo_root / ARCHIVE_DIR
+
+        for name in skill_names:
+            if name not in registry.skills:
+                logger.warning("skill_not_found_for_restore", name=name)
+                continue
+
+            skill = registry.skills[name]
+            if skill.status != SkillStatus.ARCHIVED:
+                logger.info("skill_not_archived", name=name)
+                continue
+
+            # Calculate paths
+            current_path = self.repo_root / skill.path
+
+            # Target path: strip ARCHIVE_DIR from the relative path
+            # skill.path is like ".archive/prompts/..."
+            try:
+                # Get path relative to archive root to restore original structure
+                # e.g. "prompts/foo.md" from ".archive/prompts/foo.md"
+                original_relative_path = current_path.relative_to(archive_root)
+            except ValueError:
+                # Fallback if path manipulation fails or manual edit messed it up
+                logger.error("invalid_archive_path", path=str(skill.path))
+                continue
+
+            restore_path = self.repo_root / original_relative_path
+
+            if not current_path.exists():
+                logger.error("archived_file_not_found", path=str(current_path))
+                continue
+
+            if restore_path.exists():
+                logger.error("restore_destination_exists", path=str(restore_path))
+                continue
+
+            # Ensure restore directory exists
+            restore_path.parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                # Move file
+                current_path.rename(restore_path)
+
+                # Update registry
+                registry.skills[name] = Skill(
+                    name=skill.name,
+                    path=original_relative_path,
+                    description=skill.description,
+                    type=skill.type,
+                    major=skill.major,
+                    minor=skill.minor,
+                    basename=skill.basename,
+                    is_enabled=True,  # Re-enable by default
+                    status=SkillStatus.VALID,
+                    status_detail=None,
+                    modified_at=restore_path.stat().st_mtime,
+                )
+                restored_count += 1
+                logger.info("skill_restored", name=name, path=str(restore_path))
+
+            except OSError as e:
+                logger.error("restore_failed", name=name, error=str(e))
+
+        if restored_count > 0:
+            self._save_registry()
+
+        return restored_count
 
     def get_latest_version(self, basename: str) -> Skill | None:
         """Get the latest version of a skill by basename.

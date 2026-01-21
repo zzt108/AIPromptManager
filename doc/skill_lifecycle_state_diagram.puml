@@ -1,0 +1,27 @@
+@startuml
+scale 600 width
+
+[*] --> Valid : Discovery
+[*] --> Unrecognized : Discovery
+[*] --> ParseError : Discovery
+
+state Valid {
+}
+
+state Archived {
+}
+
+Valid --> Archived : User Archives
+Archived --> Valid : User Restores
+Archived --> [*] : Deleted
+Valid --> [*] : Deleted
+
+Unrecognized --> [*] : Deleted
+ParseError --> [*] : Deleted
+
+note right of Archived
+  Moved to ./Archive/
+  Preserves folder structure
+end note
+
+@enduml
