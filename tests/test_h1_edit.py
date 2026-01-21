@@ -60,15 +60,17 @@ class TestUpdateSkillH1:
         path = Path("core/GUIDE-1-2-General.md")
         registry_service.add_skill(path)
 
-        success = registry_service.update_skill_h1("GUIDE-1-2-General", "New General Guide")
+        success = registry_service.update_skill_h1(
+            "GUIDE-1-2-General", "New General Guide"
+        )
 
         assert success is True
-        
+
         # Verify file content
         content = (tmp_repo_structure / path).read_text(encoding="utf-8")
         assert "# New General Guide" in content
         assert "# General Coding Conventions" not in content
-        
+
         # Verify registry update
         skill = registry_service.get_skill("GUIDE-1-2-General")
         assert skill is not None
@@ -83,7 +85,7 @@ class TestUpdateSkillH1:
         # Create file without H1
         path = tmp_repo_structure / "core" / "GUIDE-0-0-NoH1.md"
         path.write_text("Just some content.\n", encoding="utf-8")
-        
+
         rel_path = Path("core/GUIDE-0-0-NoH1.md")
         registry_service.add_skill(rel_path)
 
@@ -102,10 +104,9 @@ class TestUpdateSkillH1:
         """Test replacing H1 when file has frontmatter."""
         path = tmp_repo_structure / "core" / "GUIDE-1-0-Frontmatter.md"
         path.write_text(
-            "---\ntype: GUIDE\n---\n\n# Old Title\n\nContent.", 
-            encoding="utf-8"
+            "---\ntype: GUIDE\n---\n\n# Old Title\n\nContent.", encoding="utf-8"
         )
-        
+
         rel_path = Path("core/GUIDE-1-0-Frontmatter.md")
         registry_service.add_skill(rel_path)
 
@@ -124,15 +125,14 @@ class TestUpdateSkillH1:
     ) -> None:
         """Test inserting H1 after frontmatter when missing."""
         path = tmp_repo_structure / "core" / "GUIDE-1-0-FrontmatterNoH1.md"
-        path.write_text(
-            "---\ntype: GUIDE\n---\n\nContent.", 
-            encoding="utf-8"
-        )
-        
+        path.write_text("---\ntype: GUIDE\n---\n\nContent.", encoding="utf-8")
+
         rel_path = Path("core/GUIDE-1-0-FrontmatterNoH1.md")
         registry_service.add_skill(rel_path)
 
-        success = registry_service.update_skill_h1("GUIDE-1-0-FrontmatterNoH1", "Inserted Title")
+        success = registry_service.update_skill_h1(
+            "GUIDE-1-0-FrontmatterNoH1", "Inserted Title"
+        )
 
         assert success is True
         content = path.read_text(encoding="utf-8")

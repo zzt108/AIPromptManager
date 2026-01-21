@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Callable, cast
 
 import structlog
 
+from ui.dialogs.quick_view_dialog import QuickViewDialog
 from models.agent_config import AgentConfig
 
 if TYPE_CHECKING:
@@ -435,155 +436,13 @@ class ConfigPanel(ttk.Frame):
             return
 
         name = listbox.get(indices[0])
-        skill = self._registry_service.get_skill(name)
 
-        if not skill:
-            messagebox.showwarning("Quick View", f"Skill '{name}' not found.")
-            return
+        # Callback to refresh list if H1 is updated
+        def on_update() -> None:
+            self._set_status(f"Updated title for '{name}'")
+            self.refresh()
 
-        # Read file content
-        file_path = self._registry_service.repo_root / skill.path
-        if not file_path.exists():
-            messagebox.showwarning("Quick View", f"File not found: {file_path}")
-            return
-
-        try:
-            content = file_path.read_text(encoding="utf-8")
-        except Exception as e:
-            messagebox.showerror("Quick View", f"Error reading file: {e}")
-            return
-
-        # Parse markdown for display
-        h1, summary, toc = self._parse_markdown_preview(content)
-
-        # Create popup window
-        popup = tk.Toplevel(self)
-        popup.title(f"Quick View: {name}")
-        popup.geometry("600x500")
-        popup.transient(self.winfo_toplevel())
-        popup.grab_set()
-
-        # Content frame with scrollbar
-        container = ttk.Frame(popup)
-        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # H1 Edit Frame
-        h1_frame = ttk.Frame(container)
-        h1_frame.pack(fill=tk.X, pady=(0, 10))
-
-        h1_var = tk.StringVar(value=h1)
-        # Note: ConfigPanel usually imports ttk, so ttk.Entry is fine
-        h1_entry = ttk.Entry(
-            h1_frame, textvariable=h1_var, font=("TkDefaultFont", 12, "bold")
-        )
-        h1_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        def save_h1() -> None:
-            new_h1 = h1_var.get().strip()
-            if not new_h1:
-                messagebox.showwarning("Save H1", "Title cannot be empty.")
-                return
-
-            if self._registry_service.update_skill_h1(name, new_h1):
-                self._set_status(f"Updated title for '{name}'")
-                self.refresh()  # Is this enough? It refreshes available list.
-                # Ideally we refresh tree? ConfigPanel doesn't have a tree but simple listboxes.
-                # Refeshing available list is good.
-                popup.destroy()
-            else:
-                messagebox.showerror("Save H1", "Failed to update title.")
-
-        save_btn = ttk.Button(h1_frame, text="💾 Save", command=save_h1, width=8)
-        save_btn.pack(side=tk.LEFT)
-
-        # Summary
-        if summary:
-            summary_label = ttk.Label(container, text=summary, wraplength=550)
-            summary_label.pack(anchor=tk.W, pady=(0, 10))
-
-        # TOC (H2 headings)
-        if toc:
-            toc_label = ttk.Label(
-                container, text="Contents:", font=("TkDefaultFont", 10, "bold")
-            )
-            toc_label.pack(anchor=tk.W, pady=(5, 2))
-            for heading in toc:
-                h2_label = ttk.Label(container, text=f"  • {heading}")
-                h2_label.pack(anchor=tk.W)
-
-        # Spacer
-        ttk.Frame(container).pack(fill=tk.BOTH, expand=True)
-
-        # Action Buttons
-        btn_frame = ttk.Frame(container)
-        btn_frame.pack(fill=tk.X, pady=10)
-
-        ttk.Button(
-            btn_frame,
-            text="📝 Open in Editor",
-            command=lambda: self._open_with_editor(listbox),
-        ).pack(side=tk.LEFT, padx=5)
-
-        ttk.Button(
-            btn_frame,
-            text="📝 Open in Notepad",
-            command=lambda: self._open_with_notepad(listbox),
-        ).pack(side=tk.LEFT, padx=5)
-
-        ttk.Button(btn_frame, text="Close", command=popup.destroy).pack(side=tk.RIGHT)
-
-        # Center popup on parent
-        popup.update_idletasks()
-        x = self.winfo_rootx() + (self.winfo_width() // 2) - (popup.winfo_width() // 2)
-        y = (
-            self.winfo_rooty()
-            + (self.winfo_height() // 2)
-            - (popup.winfo_height() // 2)
-        )
-        popup.geometry(f"+{x}+{y}")
-
-    def _parse_markdown_preview(self, content: str) -> tuple[str, str, list[str]]:
-        """Parse markdown content for Quick View display.
-
-        Args:
-            content: Raw markdown content
-
-        Returns:
-            Tuple of (h1_title, summary_paragraph, list_of_h2_headings)
-        """
-        lines = content.splitlines()
-        h1 = ""
-        summary = ""
-        toc: list[str] = []
-        in_summary = False
-
-        for line in lines:
-            stripped = line.strip()
-
-            # Extract H1
-            if stripped.startswith("# ") and not h1:
-                h1 = stripped[2:].strip()
-                in_summary = True
-                continue
-
-            # Extract first paragraph after H1 as summary
-            if in_summary:
-                if stripped.startswith("#"):
-                    in_summary = False
-                elif stripped:
-                    if not summary:
-                        summary = stripped
-                    else:
-                        pass
-                elif summary:
-                    # Empty line after summary paragraph
-                    in_summary = False
-
-            # Collect H2 headings
-            if stripped.startswith("## "):
-                toc.append(stripped[3:].strip())
-
-        return h1, summary, toc
+        QuickViewDialog(self, self._registry_service, name, on_update=on_update)
 
     def _open_with_editor(self, listbox: tk.Listbox) -> None:
         """Open the selected file with the default application.
