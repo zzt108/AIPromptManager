@@ -40,6 +40,7 @@ python src/main.py --data-dir c:\Path\To\YourPrompts
 - **Status Indicators** (✓/⚠️/❌) showing file validity and parse status
 - **YAML Support** for `.yaml` and `.yml` skill files
 - **File Sync** with bidirectional change detection and conflict resolution dialogs
+- **Archive/Restore** management for deprecated or unused skills
 - **Context Menu** actions: Quick View, Show in Explorer, Open with Editor, Open with Notepad
 
 ## 🏗️ Architecture

@@ -174,6 +174,18 @@ RegistryService "1" *-- "*" Skill
 4. Review changes, choose Overwrite to update
 5. Project now has the latest version
 
+### Use Case 5: Archiving Skills
+
+**Scenario**: You have obsolete prompts that you want to remove from view but keep for history.
+
+**Steps**:
+
+1. Select skills in Knowledge Base
+2. Right-click → **Archive Skills**
+3. Skills are moved to `.archive/` folder and hidden
+4. Enable "Show Archived" checkbox to view them
+5. Right-click archived skills → **Restore Skills** to bring them back
+
 ---
 
 ## 📁 Key Components
@@ -197,7 +209,8 @@ RegistryService "1" *-- "*" Skill
 - **Toggle Visibility** with context menu (Hide/Show)
 - **Quick View** popup for previewing content
 - **Show Hidden** checkbox to reveal greyed-out items
-- **Status Indicators**: ✓ Valid, ⚠️ Unrecognized, ❌ Parse Error
+- **Show Archived** checkbox to reveal archived items (stored in `.archive/`)
+- **Status Indicators**: ✓ Valid, ⚠️ Unrecognized, ❌ Parse Error, 📦 Archived
 - Context actions: Show in Explorer, Open with Editor, Open with Notepad
 
 ### Profession Designer

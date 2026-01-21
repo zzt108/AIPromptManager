@@ -102,7 +102,7 @@ class RegistryPanel(ttk.Frame):
             toolbar,
             text="Show Hidden",
             variable=self.show_hidden_var,
-            command=self._apply_filter,
+            command=self._apply_filter_and_sort,
         )
         show_hidden_chk.pack(side=tk.LEFT, padx=(20, 5))
 
@@ -112,7 +112,7 @@ class RegistryPanel(ttk.Frame):
             toolbar,
             text="Show Archived",
             variable=self.show_archived_var,
-            command=self._apply_filter,
+            command=self._apply_filter_and_sort,
         )
         show_archived_chk.pack(side=tk.LEFT, padx=5)
 
@@ -274,6 +274,14 @@ class RegistryPanel(ttk.Frame):
         self._status_callback(f"Loaded {count} skills")
         logger.info("registry_list_refreshed", count=count)
 
+    def _apply_filter_and_sort(self) -> None:
+        """Apply filter and re-apply current sort order.
+
+        Used as command for checkboxes to ensure consistent display.
+        """
+        self._apply_filter()
+        self._sort_column(self._sort_col, self._sort_reverse)
+
     def _apply_filter(self) -> None:
         """Apply filter to treeview based on filter entry text."""
         filter_text = self.filter_var.get().lower()
@@ -298,6 +306,10 @@ class RegistryPanel(ttk.Frame):
             if not is_enabled and not show_hidden:
                 continue
 
+            # Respect "Show Archived" toggle
+            if status == SkillStatus.ARCHIVED and not self.show_archived_var.get():
+                continue
+
             # Filter on name, path, OR modified date
             search_content = f"{name} {path} {modified_str}".lower()
             if filter_text and filter_text not in search_content:
@@ -319,10 +331,6 @@ class RegistryPanel(ttk.Frame):
                 icon = "❌"
             elif status == SkillStatus.ARCHIVED:
                 icon = "📦"
-
-            # Check if archived should be shown
-            if status == SkillStatus.ARCHIVED and not self.show_archived_var.get():
-                continue
 
             self.tree.insert(
                 "",
