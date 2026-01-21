@@ -100,11 +100,21 @@ class RegistryPanel(ttk.Frame):
         self.show_hidden_var = tk.BooleanVar(value=True)
         show_hidden_chk = ttk.Checkbutton(
             toolbar,
-            text="Show Hidden Skills",
+            text="Show Hidden",
             variable=self.show_hidden_var,
             command=self._apply_filter,
         )
         show_hidden_chk.pack(side=tk.LEFT, padx=(20, 5))
+
+        # Show Archived Toggle
+        self.show_archived_var = tk.BooleanVar(value=False)
+        show_archived_chk = ttk.Checkbutton(
+            toolbar,
+            text="Show Archived",
+            variable=self.show_archived_var,
+            command=self._apply_filter,
+        )
+        show_archived_chk.pack(side=tk.LEFT, padx=5)
 
         # Treeview with scrollbars
         tree_frame = ttk.Frame(self)
@@ -146,6 +156,7 @@ class RegistryPanel(ttk.Frame):
         self.tree.tag_configure("status_valid", foreground="black")
         self.tree.tag_configure("status_unrecognized", foreground="#e67e22")  # Orange
         self.tree.tag_configure("status_parse_error", foreground="#c0392b")  # Red
+        self.tree.tag_configure("status_archived", foreground="#7f8c8d")  # Gray/Slate
 
         # Scrollbars
         vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -167,6 +178,15 @@ class RegistryPanel(ttk.Frame):
         self.context_menu.add_command(
             label="Rename Intelligently...",
             command=self._on_rename_click,
+        )
+        self.context_menu.add_separator()
+        self.context_menu.add_command(
+            label="Archive Skills...",
+            command=self._on_archive_click,
+        )
+        self.context_menu.add_command(
+            label="Restore Skills...",
+            command=self._on_restore_click,
         )
         self.context_menu.add_separator()
         self.context_menu.add_command(
@@ -297,6 +317,12 @@ class RegistryPanel(ttk.Frame):
                 icon = "⚠️"
             elif status == SkillStatus.PARSE_ERROR:
                 icon = "❌"
+            elif status == SkillStatus.ARCHIVED:
+                icon = "📦"
+
+            # Check if archived should be shown
+            if status == SkillStatus.ARCHIVED and not self.show_archived_var.get():
+                continue
 
             self.tree.insert(
                 "",
@@ -551,6 +577,52 @@ class RegistryPanel(ttk.Frame):
             except Exception as e:
                 logger.error("rename_error", error=str(e))
                 messagebox.showerror("Rename Failed", str(e))
+
+    def _on_archive_click(self) -> None:
+        """Handle archive action."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        # Confirm action
+        count = len(selection)
+        msg = f"Are you sure you want to archive {count} skill(s)?\nThey will be moved to the .archive directory."
+        if not messagebox.askyesno("Confirm Archive", msg):
+            return
+
+        try:
+            archived = self._service.archive_skills(list(selection))
+            if archived > 0:
+                self._status_callback(f"Archived {archived} skills.")
+                self.refresh_list()
+            else:
+                messagebox.showwarning("Archive", "No skills were archived.")
+        except Exception as e:
+            logger.error("archive_error", error=str(e))
+            messagebox.showerror("Archive Failed", str(e))
+
+    def _on_restore_click(self) -> None:
+        """Handle restore action."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        # Confirm action
+        count = len(selection)
+        msg = f"Are you sure you want to restore {count} skill(s)?\nThey will be moved back to their original locations."
+        if not messagebox.askyesno("Confirm Restore", msg):
+            return
+
+        try:
+            restored = self._service.restore_skills(list(selection))
+            if restored > 0:
+                self._status_callback(f"Restored {restored} skills.")
+                self.refresh_list()
+            else:
+                messagebox.showwarning("Restore", "No skills were restored.")
+        except Exception as e:
+            logger.error("restore_error", error=str(e))
+            messagebox.showerror("Restore Failed", str(e))
 
     def _show_quick_view(self) -> None:
         """Show a Quick View popup for the selected skill."""

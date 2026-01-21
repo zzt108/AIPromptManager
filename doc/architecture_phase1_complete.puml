@@ -1,0 +1,26 @@
+@startuml
+skinparam state {
+  BackgroundColor<<Archived>> LightBlue
+  BorderColor<<Archived>> Blue
+}
+
+state "Active File" as Valid {
+  state "Path: core/Guide.md" as ActivePath
+}
+
+state "Archived File" as Archived <<Archived>> {
+  state "Path: .archive/core/Guide.md" as ArchivePath
+}
+
+[*] --> Valid: Create Skill
+Valid --> Archived: archive_skills()\n[Move to .archive/{rel_path}]
+Archived --> Valid: restore_skills()\n[Move to {rel_path} stripping .archive prefix]
+
+note right of Archived
+  <b>Stateless Architecture</b>
+  Original path is derived from
+  current location by removing
+  the '.archive' root prefix.
+  No metadata storage needed.
+end note
+@enduml
