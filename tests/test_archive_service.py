@@ -105,7 +105,9 @@ def test_archive_destination_exists(
 
     assert count == 0
     assert (tmp_repo_archive / "core/GUIDE-1-0-Test.md").exists()
-    assert registry_service.get_skill(skill_name).status == SkillStatus.VALID
+    skill = registry_service.get_skill(skill_name)
+    assert skill is not None
+    assert skill.status == SkillStatus.VALID
 
 
 def test_restore_destination_exists(
@@ -122,7 +124,9 @@ def test_restore_destination_exists(
 
     assert count == 0
     assert (tmp_repo_archive / ARCHIVE_DIR / "core/GUIDE-1-0-Test.md").exists()
-    assert registry_service.get_skill(skill_name).status == SkillStatus.ARCHIVED
+    skill = registry_service.get_skill(skill_name)
+    assert skill is not None
+    assert skill.status == SkillStatus.ARCHIVED
 
 
 def test_archive_nonexistent_skill(registry_service: RegistryService) -> None:
@@ -142,4 +146,6 @@ def test_restore_not_archived_skill(registry_service: RegistryService) -> None:
     skill_name = "GUIDE-1-0-Test"  # currently valid
     count = registry_service.restore_skills([skill_name])
     assert count == 0
-    assert registry_service.get_skill(skill_name).status == SkillStatus.VALID
+    skill = registry_service.get_skill(skill_name)
+    assert skill is not None
+    assert skill.status == SkillStatus.VALID
