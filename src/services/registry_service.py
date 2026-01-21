@@ -290,6 +290,111 @@ class RegistryService:
 
         return updated
 
+    def update_skill_h1(self, name: str, new_h1: str) -> bool:
+        """Update the H1 heading of a skill file.
+
+        Replaces the first H1 heading in the file with the new one.
+        If no H1 is found, inserts one at the top (or after frontmatter).
+
+        Args:
+            name: Name of the skill to update
+            new_h1: New H1 heading text
+
+        Returns:
+            True if successful, False if skill not found
+        """
+        registry = self._load_registry()
+        if name not in registry.skills:
+            logger.error("skill_not_found_for_update", name=name)
+            return False
+
+        skill = registry.skills[name]
+        path = self.repo_root / skill.path
+
+        if not path.exists():
+            logger.error("file_not_found_for_update", path=str(path))
+            return False
+
+        try:
+            content = path.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error("file_read_error", path=str(path), error=str(e))
+            return False
+
+        lines = content.strip().splitlines()
+        new_lines = []
+        h1_updated = False
+        in_frontmatter = False
+        frontmatter_end_index = -1
+
+        # Check for frontmatter
+        if lines and lines[0].strip() == "---":
+            in_frontmatter = True
+            for i, line in enumerate(lines[1:], 1):
+                if line.strip() == "---":
+                    in_frontmatter = False
+                    frontmatter_end_index = i
+                    break
+
+        # Scan for existing H1 to replace
+        for i, line in enumerate(lines):
+            # Skip lines inside frontmatter
+            if i <= frontmatter_end_index:
+                new_lines.append(line)
+                continue
+
+            if not h1_updated and line.strip().startswith("# "):
+                # FOUND IT - Replace
+                new_lines.append(f"# {new_h1}")
+                h1_updated = True
+            else:
+                new_lines.append(line)
+
+        # If we didn't find an H1 to replace, we must insert it
+        if not h1_updated:
+            # Insert after frontmatter if it exists, otherwise at top
+            insert_pos = frontmatter_end_index + 1
+
+            lines_to_insert = [f"# {new_h1}", ""]
+
+            # Add spacing before H1 if not at top of file
+            if insert_pos > 0:
+                lines_to_insert.insert(0, "")
+
+            # Insert the lines
+            for line in reversed(lines_to_insert):
+                new_lines.insert(insert_pos, line)
+
+            h1_updated = True
+
+        # Write back to file
+        try:
+            # Reconstruct content with original line endings if possible, but standardizing to \n is usually safer
+            new_content = "\n".join(new_lines) + "\n"
+            path.write_text(new_content, encoding="utf-8")
+        except Exception as e:
+            logger.error("file_write_error", path=str(path), error=str(e))
+            return False
+
+        # Update registry description
+        registry.skills[name] = Skill(
+            name=skill.name,
+            path=skill.path,
+            description=new_h1,  # Update description to match new H1
+            type=skill.type,
+            major=skill.major,
+            minor=skill.minor,
+            basename=skill.basename,
+            is_enabled=skill.is_enabled,
+            status=skill.status,
+            status_detail=skill.status_detail,
+            modified_at=path.stat().st_mtime,
+        )
+        self._save_registry()
+        logger.info("skill_h1_updated", name=name, new_h1=new_h1)
+
+        return True
+
     def update_skill_path(self, name: str, new_path: Path) -> None:
         """Update the path for an existing skill.
 

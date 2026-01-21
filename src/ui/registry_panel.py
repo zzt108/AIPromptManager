@@ -530,7 +530,7 @@ class RegistryPanel(ttk.Frame):
 
         try:
             if platform.system() == "Windows":
-                subprocess.run(["notepad.exe", file_path], check=False)
+                subprocess.Popen(["notepad.exe", file_path])
             else:
                 # Fallback for non-Windows (mostly for dev/testing)
                 self._open_with_editor()
@@ -704,38 +704,76 @@ class RegistryPanel(ttk.Frame):
         # Create popup window
         popup = tk.Toplevel(self)
         popup.title(f"Quick View: {name}")
-        popup.geometry("500x400")
+        popup.geometry("600x500")
         popup.transient(self.winfo_toplevel())
         popup.grab_set()
 
         # Content frame with scrollbar
-        frame = ttk.Frame(popup, padding=10)
-        frame.pack(fill=tk.BOTH, expand=True)
+        container = ttk.Frame(popup)
+        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # H1 Title
-        title_label = ttk.Label(
-            frame, text=h1, font=("TkDefaultFont", 14, "bold"), wraplength=460
+        # H1 Edit Frame
+        h1_frame = ttk.Frame(container)
+        h1_frame.pack(fill=tk.X, pady=(0, 10))
+
+        h1_var = tk.StringVar(value=h1)
+        h1_entry = ttk.Entry(
+            h1_frame, textvariable=h1_var, font=("TkDefaultFont", 12, "bold")
         )
-        title_label.pack(anchor=tk.W, pady=(0, 10))
+        h1_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        def save_h1() -> None:
+            new_h1 = h1_var.get().strip()
+            if not new_h1:
+                messagebox.showwarning("Save H1", "Title cannot be empty.")
+                return
+
+            if self._service.update_skill_h1(name, new_h1):
+                self._status_callback(f"Updated title for '{name}'")
+                self.refresh_list()
+                popup.destroy()
+                # Re-open to show updated content? Or just close?
+                # Let's just close for now as it's a modal action
+            else:
+                messagebox.showerror("Save H1", "Failed to update title.")
+
+        save_btn = ttk.Button(h1_frame, text="💾 Save", command=save_h1, width=8)
+        save_btn.pack(side=tk.LEFT)
 
         # Summary
         if summary:
-            summary_label = ttk.Label(frame, text=summary, wraplength=460)
+            summary_label = ttk.Label(container, text=summary, wraplength=550)
             summary_label.pack(anchor=tk.W, pady=(0, 10))
 
         # TOC (H2 headings)
         if toc:
             toc_label = ttk.Label(
-                frame, text="Contents:", font=("TkDefaultFont", 10, "bold")
+                container, text="Contents:", font=("TkDefaultFont", 10, "bold")
             )
             toc_label.pack(anchor=tk.W, pady=(5, 2))
+
+            # Scrollable frame for TOC if it's long?
+            # For now just pack them
             for heading in toc:
-                h2_label = ttk.Label(frame, text=f"  • {heading}")
+                h2_label = ttk.Label(container, text=f"  • {heading}")
                 h2_label.pack(anchor=tk.W)
 
-        # Close button
-        close_btn = ttk.Button(popup, text="Close", command=popup.destroy)
-        close_btn.pack(pady=10)
+        # Spacer to push buttons to bottom
+        ttk.Frame(container).pack(fill=tk.BOTH, expand=True)
+
+        # Action Buttons
+        btn_frame = ttk.Frame(container)
+        btn_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Button(
+            btn_frame, text="📝 Open in Editor", command=self._open_with_editor
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            btn_frame, text="📝 Open in Notepad", command=self._open_with_notepad
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(btn_frame, text="Close", command=popup.destroy).pack(side=tk.RIGHT)
 
         # Center popup on parent
         popup.update_idletasks()

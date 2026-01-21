@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+import os
 import platform
 import subprocess
 from pathlib import Path
@@ -458,38 +459,78 @@ class ConfigPanel(ttk.Frame):
         # Create popup window
         popup = tk.Toplevel(self)
         popup.title(f"Quick View: {name}")
-        popup.geometry("500x400")
+        popup.geometry("600x500")
         popup.transient(self.winfo_toplevel())
         popup.grab_set()
 
         # Content frame with scrollbar
-        frame = ttk.Frame(popup, padding=10)
-        frame.pack(fill=tk.BOTH, expand=True)
+        container = ttk.Frame(popup)
+        container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # H1 Title
-        title_label = ttk.Label(
-            frame, text=h1, font=("TkDefaultFont", 14, "bold"), wraplength=460
+        # H1 Edit Frame
+        h1_frame = ttk.Frame(container)
+        h1_frame.pack(fill=tk.X, pady=(0, 10))
+
+        h1_var = tk.StringVar(value=h1)
+        # Note: ConfigPanel usually imports ttk, so ttk.Entry is fine
+        h1_entry = ttk.Entry(
+            h1_frame, textvariable=h1_var, font=("TkDefaultFont", 12, "bold")
         )
-        title_label.pack(anchor=tk.W, pady=(0, 10))
+        h1_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        def save_h1() -> None:
+            new_h1 = h1_var.get().strip()
+            if not new_h1:
+                messagebox.showwarning("Save H1", "Title cannot be empty.")
+                return
+
+            if self._registry_service.update_skill_h1(name, new_h1):
+                self._set_status(f"Updated title for '{name}'")
+                self.refresh()  # Is this enough? It refreshes available list.
+                # Ideally we refresh tree? ConfigPanel doesn't have a tree but simple listboxes.
+                # Refeshing available list is good.
+                popup.destroy()
+            else:
+                messagebox.showerror("Save H1", "Failed to update title.")
+
+        save_btn = ttk.Button(h1_frame, text="💾 Save", command=save_h1, width=8)
+        save_btn.pack(side=tk.LEFT)
 
         # Summary
         if summary:
-            summary_label = ttk.Label(frame, text=summary, wraplength=460)
+            summary_label = ttk.Label(container, text=summary, wraplength=550)
             summary_label.pack(anchor=tk.W, pady=(0, 10))
 
         # TOC (H2 headings)
         if toc:
             toc_label = ttk.Label(
-                frame, text="Contents:", font=("TkDefaultFont", 10, "bold")
+                container, text="Contents:", font=("TkDefaultFont", 10, "bold")
             )
             toc_label.pack(anchor=tk.W, pady=(5, 2))
             for heading in toc:
-                h2_label = ttk.Label(frame, text=f"  • {heading}")
+                h2_label = ttk.Label(container, text=f"  • {heading}")
                 h2_label.pack(anchor=tk.W)
 
-        # Close button
-        close_btn = ttk.Button(popup, text="Close", command=popup.destroy)
-        close_btn.pack(pady=10)
+        # Spacer
+        ttk.Frame(container).pack(fill=tk.BOTH, expand=True)
+
+        # Action Buttons
+        btn_frame = ttk.Frame(container)
+        btn_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Button(
+            btn_frame,
+            text="📝 Open in Editor",
+            command=lambda: self._open_with_editor(listbox),
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            btn_frame,
+            text="📝 Open in Notepad",
+            command=lambda: self._open_with_notepad(listbox),
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(btn_frame, text="Close", command=popup.destroy).pack(side=tk.RIGHT)
 
         # Center popup on parent
         popup.update_idletasks()
@@ -533,7 +574,6 @@ class ConfigPanel(ttk.Frame):
                     if not summary:
                         summary = stripped
                     else:
-                        # Stop at next paragraph break or heading
                         pass
                 elif summary:
                     # Empty line after summary paragraph
@@ -544,6 +584,43 @@ class ConfigPanel(ttk.Frame):
                 toc.append(stripped[3:].strip())
 
         return h1, summary, toc
+
+    def _open_with_editor(self, listbox: tk.Listbox) -> None:
+        """Open the selected file with the default application.
+
+        Args:
+             listbox: The listbox from which to get the selected item
+        """
+        indices = cast(
+            tuple[int, ...], listbox.curselection()  # type: ignore[no-untyped-call]
+        )
+        if not indices:
+            messagebox.showinfo("Open with Editor", "No item selected.")
+            return
+
+        name = listbox.get(indices[0])
+        skill = self._registry_service.get_skill(name)
+
+        if not skill:
+            messagebox.showwarning("Open with Editor", f"Skill '{name}' not found.")
+            return
+
+        file_path = self._registry_service.repo_root / skill.path
+        if not file_path.exists():
+            messagebox.showwarning("Open with Editor", f"File not found: {file_path}")
+            return
+
+        try:
+            if platform.system() == "Windows":
+                os.startfile(file_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", file_path], check=False)
+            else:  # Linux
+                subprocess.run(["xdg-open", file_path], check=False)
+            logger.info("open_with_editor", path=str(file_path))
+        except Exception as e:
+            logger.error("open_with_editor_error", error=str(e))
+            messagebox.showerror("Error", f"Could not open file: {e}")
 
     def _open_with_notepad(self, listbox: tk.Listbox) -> None:
         """Open the selected file with Notepad.
@@ -572,14 +649,10 @@ class ConfigPanel(ttk.Frame):
 
         try:
             if platform.system() == "Windows":
-                subprocess.run(["notepad.exe", str(file_path)], check=False)
+                subprocess.Popen(["notepad.exe", str(file_path)])
             else:
-                # Fallback attempts
-                cmd = ["xdg-open", str(file_path)]
-                if platform.system() == "Darwin":
-                    cmd = ["open", str(file_path)]
-                subprocess.run(cmd, check=False)
-
+                # Fallback for non-Windows
+                self._open_with_editor(listbox)
             logger.info("open_with_notepad", path=str(file_path))
         except Exception as e:
             logger.error("open_with_notepad_error", error=str(e))
