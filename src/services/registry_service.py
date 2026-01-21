@@ -387,7 +387,36 @@ class RegistryService:
                                 abs(existing.modified_at - current_mtime) > 0.001
                             )
 
-                            if path_changed or file_modified:
+                            # Determine expected status based on path
+                            path_str = str(relative_path)
+                            is_in_archive = path_str.startswith(
+                                ARCHIVE_DIR + "/"
+                            ) or path_str.startswith(ARCHIVE_DIR + "\\")
+
+                            # Check if status is inconsistent with path
+                            status_mismatch = (
+                                is_in_archive
+                                and existing.status != SkillStatus.ARCHIVED
+                            ) or (
+                                not is_in_archive
+                                and existing.status == SkillStatus.ARCHIVED
+                            )
+
+                            if path_changed or file_modified or status_mismatch:
+                                # Determine status based on path
+                                # If file is in .archive/, mark as ARCHIVED
+                                # If file was ARCHIVED but moved out, mark as VALID
+                                if is_in_archive:
+                                    new_status = SkillStatus.ARCHIVED
+                                    new_is_enabled = False
+                                elif existing.status == SkillStatus.ARCHIVED:
+                                    # Was archived, now moved out - restore to VALID
+                                    new_status = SkillStatus.VALID
+                                    new_is_enabled = existing.is_enabled
+                                else:
+                                    new_status = existing.status
+                                    new_is_enabled = existing.is_enabled
+
                                 # We need to update the skill
                                 new_skill = Skill(
                                     name=existing.name,
@@ -397,8 +426,8 @@ class RegistryService:
                                     major=existing.major,
                                     minor=existing.minor,
                                     basename=existing.basename,
-                                    is_enabled=existing.is_enabled,
-                                    status=existing.status,
+                                    is_enabled=new_is_enabled,
+                                    status=new_status,
                                     status_detail=existing.status_detail,
                                     modified_at=current_mtime,
                                 )
