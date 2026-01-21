@@ -927,7 +927,7 @@ class RegistryService:
                     major=skill.major,
                     minor=skill.minor,
                     basename=skill.basename,
-                    is_enabled=True,  # Re-enable by default
+                    is_enabled=False,  # Restored skills stay disabled
                     status=SkillStatus.VALID,
                     status_detail=None,
                     modified_at=restore_path.stat().st_mtime,

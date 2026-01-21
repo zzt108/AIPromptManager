@@ -86,7 +86,7 @@ def test_restore_skill_success(
     skill = registry_service.get_skill(skill_name)
     assert skill is not None
     assert skill.status == SkillStatus.VALID
-    assert skill.is_enabled
+    assert not skill.is_enabled
     assert skill.path == Path("core/GUIDE-1-0-Test.md")
 
 
