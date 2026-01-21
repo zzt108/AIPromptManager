@@ -41,6 +41,7 @@ python src/main.py --data-dir c:\Path\To\YourPrompts
 - **YAML Support** for `.yaml` and `.yml` skill files
 - **File Sync** with bidirectional change detection and conflict resolution dialogs
 - **Archive/Restore** management for deprecated or unused skills
+- **Compare Tool** integration for diffing skill versions (supports P4Merge, KDiff3, WinMerge, VS Code)
 - **Context Menu** actions: Quick View, Show in Explorer, Open with Editor, Open with Notepad
 
 ## 🏗️ Architecture

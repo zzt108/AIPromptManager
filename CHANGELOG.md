@@ -5,6 +5,28 @@ All notable changes to AIPromptManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-21
+
+### Features
+
+- **Compare with Merge Tool** - Launch external merge tools to diff selected skills:
+  - Supports 2-way and 3-way comparisons
+  - Configurable presets for P4Merge, KDiff3, WinMerge, and VS Code
+  - Customizable command-line arguments
+- **Settings Dialog** - Centralized configuration for application settings (currently Merge Tool)
+- **Persistent Settings** - Application settings are now saved to `.apm/settings.json`
+
+### Improvements
+
+- **Robust Headless Testing** - UI tests now skip gracefully if no Tcl/Tk environment is available (resolving Git hook issues)
+- **Memory Leak Fix** - Resolved a critical memory leak in test suite caused by Tkinter/Tcl object accumulation
+- **Type Safety** - Achieved strict `mypy` compliance across all new UI components
+
+### Technical
+
+- **SettingsService** - New service for managing persistent application configuration
+- **Mocking Strategy** - Implemented environment-aware test skipping for UI modules
+
 ## [1.1.0] - 2026-01-20
 
 ### Features

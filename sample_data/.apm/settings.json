@@ -1,0 +1,8 @@
+{
+  "merge_tool": {
+    "name": "p4merge",
+    "path": "C:\\Program Files\\Perforce\\p4merge.exe",
+    "args_2way": "{left} {right}",
+    "args_3way": "{base} {left} {right}"
+  }
+}
