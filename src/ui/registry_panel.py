@@ -18,10 +18,12 @@ from utils.file_launcher import (
 from ui.dialogs.rename_dialog import RenameDialog
 from ui.dialogs.move_dialog import MoveDialog
 from ui.dialogs.quick_view_dialog import QuickViewDialog
+from ui.dialogs.compare_dialog import CompareDialog
 from models.skill_status import SkillStatus
 
 if TYPE_CHECKING:
     from services.registry_service import RegistryService
+    from services.settings_service import SettingsService
 
 logger = structlog.get_logger(__name__)
 
@@ -43,6 +45,7 @@ class RegistryPanel(ttk.Frame):
         parent: tk.Misc,
         service: RegistryService,
         status_callback: Callable[[str], None],
+        settings_service: SettingsService | None = None,
     ) -> None:
         """Initialize registry panel.
 
@@ -50,9 +53,11 @@ class RegistryPanel(ttk.Frame):
             parent: Parent widget (notebook)
             service: Registry service for operations
             status_callback: Function to update status bar
+            settings_service: Service for settings (required for Compare)
         """
         super().__init__(parent)
         self._service = service
+        self.settings_service = settings_service
         self._status_callback = status_callback
         self._all_items: list[
             tuple[str, str, str, str, bool, SkillStatus, str, float]
@@ -179,6 +184,10 @@ class RegistryPanel(ttk.Frame):
         self.context_menu.add_command(
             label="Quick View",
             command=self._show_quick_view,
+        )
+        self.context_menu.add_command(
+            label="Compare Selected...",
+            command=self._on_compare_click,
         )
         self.context_menu.add_command(
             label="Rename Intelligently...",
@@ -671,3 +680,30 @@ class RegistryPanel(ttk.Frame):
             self.refresh_list()
 
         QuickViewDialog(self, self._service, name, on_update=on_update)
+
+    def _on_compare_click(self) -> None:
+        """Handle compare action."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        if len(selection) < 2 or len(selection) > 3:
+            messagebox.showinfo("Compare", "Please select 2 or 3 skills to compare.")
+            return
+
+        if not self.settings_service:
+            messagebox.showerror("Error", "Settings service not available.")
+            return
+
+        # Resolve paths
+        paths = []
+        for name in selection:
+            skill = self._service.get_skill(name)
+            if skill:
+                paths.append(self._service.repo_root / skill.path)
+
+        if len(paths) != len(selection):
+            messagebox.showerror("Error", "Could not resolve all selected paths.")
+            return
+
+        CompareDialog(self, self.settings_service, self._service, paths)

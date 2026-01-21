@@ -17,6 +17,7 @@ from repositories.registry_repository import RegistryRepository
 from services.agent_builder import AgentBuilder
 from services.naming_service import NamingService
 from services.registry_service import RegistryService
+from services.settings_service import SettingsService
 from ui.main_window import MainWindow
 from utils.logging_config import configure_logging
 
@@ -116,6 +117,8 @@ def main() -> None:
         repo_root=data_dir,
         naming_service=naming_service,
     )
+    settings_service = SettingsService(str(apm_dir / "settings.json"))
+
     agent_builder = AgentBuilder(
         registry_service=registry_service,
         repo_root=data_dir,
@@ -123,7 +126,9 @@ def main() -> None:
     )
 
     # Create and run main window (pass warnings for display)
-    app = MainWindow(registry_service, agent_builder, startup_warnings=warnings)
+    app = MainWindow(
+        registry_service, agent_builder, settings_service, startup_warnings=warnings
+    )
     app.run()
 
 

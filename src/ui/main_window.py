@@ -11,11 +11,14 @@ import structlog
 if TYPE_CHECKING:
     from services.agent_builder import AgentBuilder
     from services.registry_service import RegistryService
+    from services.settings_service import SettingsService
 
 from ui.build_panel import BuildPanel
 from ui.config_panel import ConfigPanel
 from ui.widgets.tooltip import ToolTip
+from ui.widgets.tooltip import ToolTip
 from ui.registry_panel import RegistryPanel
+from ui.dialogs.settings_dialog import SettingsDialog
 
 logger = structlog.get_logger(__name__)
 
@@ -40,6 +43,7 @@ class MainWindow(tk.Tk):
         self,
         registry_service: RegistryService,
         agent_builder: AgentBuilder,
+        settings_service: SettingsService,
         startup_warnings: list[str] | None = None,
     ) -> None:
         """Initialize main window.
@@ -47,11 +51,13 @@ class MainWindow(tk.Tk):
         Args:
             registry_service: Service for registry operations
             agent_builder: Service for building agent folders
+            settings_service: Service for application settings
             startup_warnings: Optional list of warnings to display on startup
         """
         super().__init__()
         self._registry_service = registry_service
         self._agent_builder = agent_builder
+        self._settings_service = settings_service
         self._startup_warnings = startup_warnings or []
 
         self._setup_window()
@@ -84,6 +90,8 @@ class MainWindow(tk.Tk):
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Exit", command=self.quit)
+        file_menu.add_separator()
+        file_menu.add_command(label="Settings...", command=self._show_settings)
 
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -100,6 +108,7 @@ class MainWindow(tk.Tk):
             self.notebook,
             self._registry_service,
             self._set_status,
+            settings_service=self._settings_service,
         )
         self.notebook.add(self.registry_panel, text="Knowledge Base")
 
@@ -168,6 +177,10 @@ class MainWindow(tk.Tk):
             "Manage AI prompt skills and build agent configurations.\n\n"
             "Version 0.1.0",
         )
+
+    def _show_settings(self) -> None:
+        """Show settings dialog."""
+        SettingsDialog(self, self._settings_service)
 
     def run(self) -> None:
         """Start the application main loop."""
