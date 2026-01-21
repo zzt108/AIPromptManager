@@ -290,6 +290,111 @@ class RegistryService:
 
         return updated
 
+    def update_skill_h1(self, name: str, new_h1: str) -> bool:
+        """Update the H1 heading of a skill file.
+
+        Replaces the first H1 heading in the file with the new one.
+        If no H1 is found, inserts one at the top (or after frontmatter).
+
+        Args:
+            name: Name of the skill to update
+            new_h1: New H1 heading text
+
+        Returns:
+            True if successful, False if skill not found
+        """
+        registry = self._load_registry()
+        if name not in registry.skills:
+            logger.error("skill_not_found_for_update", name=name)
+            return False
+
+        skill = registry.skills[name]
+        path = self.repo_root / skill.path
+
+        if not path.exists():
+            logger.error("file_not_found_for_update", path=str(path))
+            return False
+
+        try:
+            content = path.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error("file_read_error", path=str(path), error=str(e))
+            return False
+
+        lines = content.strip().splitlines()
+        new_lines = []
+        h1_updated = False
+        in_frontmatter = False
+        frontmatter_end_index = -1
+
+        # Check for frontmatter
+        if lines and lines[0].strip() == "---":
+            in_frontmatter = True
+            for i, line in enumerate(lines[1:], 1):
+                if line.strip() == "---":
+                    in_frontmatter = False
+                    frontmatter_end_index = i
+                    break
+
+        # Scan for existing H1 to replace
+        for i, line in enumerate(lines):
+            # Skip lines inside frontmatter
+            if i <= frontmatter_end_index:
+                new_lines.append(line)
+                continue
+
+            if not h1_updated and line.strip().startswith("# "):
+                # FOUND IT - Replace
+                new_lines.append(f"# {new_h1}")
+                h1_updated = True
+            else:
+                new_lines.append(line)
+
+        # If we didn't find an H1 to replace, we must insert it
+        if not h1_updated:
+            # Insert after frontmatter if it exists, otherwise at top
+            insert_pos = frontmatter_end_index + 1
+
+            lines_to_insert = [f"# {new_h1}", ""]
+
+            # Add spacing before H1 if not at top of file
+            if insert_pos > 0:
+                lines_to_insert.insert(0, "")
+
+            # Insert the lines
+            for line in reversed(lines_to_insert):
+                new_lines.insert(insert_pos, line)
+
+            h1_updated = True
+
+        # Write back to file
+        try:
+            # Reconstruct content with original line endings if possible, but standardizing to \n is usually safer
+            new_content = "\n".join(new_lines) + "\n"
+            path.write_text(new_content, encoding="utf-8")
+        except Exception as e:
+            logger.error("file_write_error", path=str(path), error=str(e))
+            return False
+
+        # Update registry description
+        registry.skills[name] = Skill(
+            name=skill.name,
+            path=skill.path,
+            description=new_h1,  # Update description to match new H1
+            type=skill.type,
+            major=skill.major,
+            minor=skill.minor,
+            basename=skill.basename,
+            is_enabled=skill.is_enabled,
+            status=skill.status,
+            status_detail=skill.status_detail,
+            modified_at=path.stat().st_mtime,
+        )
+        self._save_registry()
+        logger.info("skill_h1_updated", name=name, new_h1=new_h1)
+
+        return True
+
     def update_skill_path(self, name: str, new_path: Path) -> None:
         """Update the path for an existing skill.
 
@@ -990,3 +1095,103 @@ class RegistryService:
         """
         matches = self.find_skills_by_basename(basename)
         return matches[0] if matches else None
+
+    def move_skills(self, skill_names: list[str], dest_folder: str) -> int:
+        """Move skills to a specific destination folder.
+
+        Preserves the filename but changes the directory.
+        Updates status if moving to/from Archive.
+
+        Args:
+            skill_names: List of skill names to move
+            dest_folder: Target directory (relative to repo root)
+
+        Returns:
+            Number of skills successfully moved
+        """
+        registry = self._load_registry()
+        moved_count = 0
+        dest_path_root = self.repo_root / dest_folder
+
+        # Ensure destination exists
+        try:
+            dest_path_root.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.error("create_dest_failed", dest=dest_folder, error=str(e))
+            return 0
+
+        for name in skill_names:
+            if name not in registry.skills:
+                logger.warning("skill_not_found_for_move", name=name)
+                continue
+
+            skill = registry.skills[name]
+            current_path = self.repo_root / skill.path
+
+            # Target filename matches current filename
+            filename = current_path.name
+            new_path = dest_path_root / filename
+
+            if not current_path.exists():
+                logger.error("file_not_found_for_move", path=str(current_path))
+                continue
+
+            if new_path.exists() and new_path != current_path:
+                logger.error("move_destination_exists", path=str(new_path))
+                continue
+
+            # Check for archive status change
+            # Normalize paths for comparison
+            dest_p = Path(dest_folder)
+            archive_p = Path(ARCHIVE_DIR)
+            is_dest_archive = dest_p == archive_p or archive_p in dest_p.parents
+
+            # Determine new status
+            new_status = skill.status
+            new_enabled = skill.is_enabled
+
+            if is_dest_archive:
+                new_status = SkillStatus.ARCHIVED
+                new_enabled = False
+            elif skill.status == SkillStatus.ARCHIVED:
+                # Moving out of archive
+                new_status = SkillStatus.VALID
+                # Keep disabled implies manual intervention needed to enable?
+                # Or if it was valid before? We don't know.
+                # Let's keep current enabled state (which is False for archived)
+                pass
+
+            try:
+                # Move file
+                current_path.rename(new_path)
+
+                # Update registry
+                new_relative_path = new_path.relative_to(self.repo_root)
+                registry.skills[name] = Skill(
+                    name=skill.name,
+                    path=new_relative_path,
+                    description=skill.description,
+                    type=skill.type,
+                    major=skill.major,
+                    minor=skill.minor,
+                    basename=skill.basename,
+                    is_enabled=new_enabled,
+                    status=new_status,
+                    status_detail=None,
+                    modified_at=new_path.stat().st_mtime,
+                )
+                moved_count += 1
+                logger.info(
+                    "skill_moved",
+                    name=name,
+                    old=str(skill.path),
+                    new=str(new_relative_path),
+                )
+
+            except OSError as e:
+                logger.error("move_failed", name=name, error=str(e))
+
+        if moved_count > 0:
+            self._save_registry()
+
+        return moved_count

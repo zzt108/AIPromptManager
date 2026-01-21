@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import os
-import platform
-import subprocess
 import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox, ttk
@@ -12,7 +10,14 @@ from typing import TYPE_CHECKING, Callable
 
 import structlog
 
+from utils.file_launcher import (
+    open_with_default_app,
+    open_with_notepad,
+    show_in_explorer,
+)
 from ui.dialogs.rename_dialog import RenameDialog
+from ui.dialogs.move_dialog import MoveDialog
+from ui.dialogs.quick_view_dialog import QuickViewDialog
 from models.skill_status import SkillStatus
 
 if TYPE_CHECKING:
@@ -178,6 +183,10 @@ class RegistryPanel(ttk.Frame):
         self.context_menu.add_command(
             label="Rename Intelligently...",
             command=self._on_rename_click,
+        )
+        self.context_menu.add_command(
+            label="Move to Folder...",
+            command=self._on_move_click,
         )
         self.context_menu.add_separator()
         self.context_menu.add_command(
@@ -486,15 +495,8 @@ class RegistryPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                subprocess.run(["explorer", "/select,", file_path], check=False)
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", "-R", file_path], check=False)
-            else:  # Linux
-                subprocess.run(["xdg-open", os.path.dirname(file_path)], check=False)
-            logger.info("show_in_explorer", path=file_path)
+            show_in_explorer(file_path)
         except Exception as e:
-            logger.error("show_in_explorer_error", error=str(e))
             messagebox.showerror("Error", f"Could not open explorer: {e}")
 
     def _open_with_editor(self) -> None:
@@ -505,15 +507,8 @@ class RegistryPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                os.startfile(file_path)
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", file_path], check=False)
-            else:  # Linux
-                subprocess.run(["xdg-open", file_path], check=False)
-            logger.info("open_with_editor", path=file_path)
+            open_with_default_app(file_path)
         except Exception as e:
-            logger.error("open_with_editor_error", error=str(e))
             messagebox.showerror("Error", f"Could not open file: {e}")
 
     def _open_with_notepad(self) -> None:
@@ -524,14 +519,8 @@ class RegistryPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                subprocess.run(["notepad.exe", file_path], check=False)
-            else:
-                # Fallback for non-Windows (mostly for dev/testing)
-                self._open_with_editor()
-            logger.info("open_with_notepad", path=file_path)
+            open_with_notepad(file_path)
         except Exception as e:
-            logger.error("open_with_notepad_error", error=str(e))
             messagebox.showerror("Error", f"Could not open Notepad: {e}")
 
     def _on_rename_click(self) -> None:
@@ -585,6 +574,41 @@ class RegistryPanel(ttk.Frame):
             except Exception as e:
                 logger.error("rename_error", error=str(e))
                 messagebox.showerror("Rename Failed", str(e))
+
+    def _on_move_click(self) -> None:
+        """Handle move action."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        skill_names = list(selection)
+
+        # Determine initial directory from first selected skill
+        initial_dir = None
+        if skill_names:
+            first_skill = self._service.get_skill(skill_names[0])
+            if first_skill:
+                initial_dir = (self._service.repo_root / first_skill.path).parent
+
+        dialog = MoveDialog(
+            self,
+            repo_root=self._service.repo_root,
+            initial_dir=initial_dir,
+            count=len(skill_names),
+        )
+        self.wait_window(dialog)
+
+        if dialog.result:
+            try:
+                moved = self._service.move_skills(skill_names, dialog.result)
+                if moved > 0:
+                    self._status_callback(f"Moved {moved} skills to {dialog.result}.")
+                    self.refresh_list()
+                else:
+                    messagebox.showwarning("Move", "No skills were moved.")
+            except Exception as e:
+                logger.error("move_error", error=str(e))
+                messagebox.showerror("Move Failed", str(e))
 
     def _on_archive_click(self) -> None:
         """Handle archive action."""
@@ -640,113 +664,10 @@ class RegistryPanel(ttk.Frame):
             return
 
         name = selection[0]
-        skill = self._service.get_skill(name)
 
-        if not skill:
-            messagebox.showwarning("Quick View", f"Skill '{name}' not found.")
-            return
+        # Callback to refresh list if H1 is updated
+        def on_update() -> None:
+            self._status_callback(f"Updated title for '{name}'")
+            self.refresh_list()
 
-        # Read file content
-        file_path = self._service.repo_root / skill.path
-        if not file_path.exists():
-            messagebox.showwarning("Quick View", f"File not found: {file_path}")
-            return
-
-        try:
-            content = file_path.read_text(encoding="utf-8")
-        except Exception as e:
-            messagebox.showerror("Quick View", f"Error reading file: {e}")
-            return
-
-        # Parse markdown for display
-        h1, summary, toc = self._parse_markdown_preview(content)
-
-        # Create popup window
-        popup = tk.Toplevel(self)
-        popup.title(f"Quick View: {name}")
-        popup.geometry("500x400")
-        popup.transient(self.winfo_toplevel())
-        popup.grab_set()
-
-        # Content frame with scrollbar
-        frame = ttk.Frame(popup, padding=10)
-        frame.pack(fill=tk.BOTH, expand=True)
-
-        # H1 Title
-        title_label = ttk.Label(
-            frame, text=h1, font=("TkDefaultFont", 14, "bold"), wraplength=460
-        )
-        title_label.pack(anchor=tk.W, pady=(0, 10))
-
-        # Summary
-        if summary:
-            summary_label = ttk.Label(frame, text=summary, wraplength=460)
-            summary_label.pack(anchor=tk.W, pady=(0, 10))
-
-        # TOC (H2 headings)
-        if toc:
-            toc_label = ttk.Label(
-                frame, text="Contents:", font=("TkDefaultFont", 10, "bold")
-            )
-            toc_label.pack(anchor=tk.W, pady=(5, 2))
-            for heading in toc:
-                h2_label = ttk.Label(frame, text=f"  • {heading}")
-                h2_label.pack(anchor=tk.W)
-
-        # Close button
-        close_btn = ttk.Button(popup, text="Close", command=popup.destroy)
-        close_btn.pack(pady=10)
-
-        # Center popup on parent
-        popup.update_idletasks()
-        x = self.winfo_rootx() + (self.winfo_width() // 2) - (popup.winfo_width() // 2)
-        y = (
-            self.winfo_rooty()
-            + (self.winfo_height() // 2)
-            - (popup.winfo_height() // 2)
-        )
-        popup.geometry(f"+{x}+{y}")
-
-    def _parse_markdown_preview(self, content: str) -> tuple[str, str, list[str]]:
-        """Parse markdown content for Quick View display.
-
-        Args:
-            content: Raw markdown content
-
-        Returns:
-            Tuple of (h1_title, summary_paragraph, list_of_h2_headings)
-        """
-        lines = content.splitlines()
-        h1 = ""
-        summary = ""
-        toc: list[str] = []
-        in_summary = False
-
-        for line in lines:
-            stripped = line.strip()
-
-            # Extract H1
-            if stripped.startswith("# ") and not h1:
-                h1 = stripped[2:].strip()
-                in_summary = True
-                continue
-
-            # Extract first paragraph after H1 as summary
-            if in_summary:
-                if stripped.startswith("#"):
-                    in_summary = False
-                elif stripped:
-                    if not summary:
-                        summary = stripped
-                    else:
-                        # Stop at next paragraph break or heading
-                        pass
-                elif summary:
-                    # Empty line after summary paragraph
-                    in_summary = False
-
-            # Collect H2 headings
-            if stripped.startswith("## "):
-                toc.append(stripped[3:].strip())
-
-        return h1, summary, toc
+        QuickViewDialog(self, self._service, name, on_update=on_update)

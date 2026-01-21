@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import tkinter as tk
-import platform
-import subprocess
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import TYPE_CHECKING, Callable, cast
 
 import structlog
+
+from utils.file_launcher import open_with_default_app, open_with_notepad
+from ui.widgets.tooltip import ToolTip
+from ui.dialogs.quick_view_dialog import QuickViewDialog
 
 from models.agent_config import AgentConfig
 
@@ -15,48 +17,6 @@ if TYPE_CHECKING:
     from services.registry_service import RegistryService
 
 logger = structlog.get_logger(__name__)
-
-
-class ToolTip:
-    """Tooltip helper class for displaying hover hints on widgets."""
-
-    def __init__(self, widget: tk.Widget, text: str) -> None:
-        """Initialize tooltip.
-
-        Args:
-            widget: Widget to attach tooltip to
-            text: Tooltip text to display
-        """
-        self.widget = widget
-        self.text = text
-        self.tooltip_window: tk.Toplevel | None = None
-        widget.bind("<Enter>", self._show)
-        widget.bind("<Leave>", self._hide)
-
-    def _show(self, event: tk.Event[tk.Misc]) -> None:
-        """Show tooltip near the widget."""
-        if self.tooltip_window:
-            return
-        x = self.widget.winfo_rootx() + 20
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
-        self.tooltip_window = tk.Toplevel(self.widget)
-        self.tooltip_window.wm_overrideredirect(True)
-        self.tooltip_window.wm_geometry(f"+{x}+{y}")
-        label = ttk.Label(
-            self.tooltip_window,
-            text=self.text,
-            background="#ffffe0",
-            relief="solid",
-            borderwidth=1,
-            padding=(5, 2),
-        )
-        label.pack()
-
-    def _hide(self, event: tk.Event[tk.Misc]) -> None:
-        """Hide tooltip."""
-        if self.tooltip_window:
-            self.tooltip_window.destroy()
-            self.tooltip_window = None
 
 
 class ConfigPanel(ttk.Frame):
@@ -434,116 +394,43 @@ class ConfigPanel(ttk.Frame):
             return
 
         name = listbox.get(indices[0])
+
+        # Callback to refresh list if H1 is updated
+        def on_update() -> None:
+            self._set_status(f"Updated title for '{name}'")
+            self.refresh()
+
+        QuickViewDialog(self, self._registry_service, name, on_update=on_update)
+
+    def _open_with_editor(self, listbox: tk.Listbox) -> None:
+        """Open the selected file with the default application.
+
+        Args:
+             listbox: The listbox from which to get the selected item
+        """
+        indices = cast(
+            tuple[int, ...], listbox.curselection()  # type: ignore[no-untyped-call]
+        )
+        if not indices:
+            messagebox.showinfo("Open with Editor", "No item selected.")
+            return
+
+        name = listbox.get(indices[0])
         skill = self._registry_service.get_skill(name)
 
         if not skill:
-            messagebox.showwarning("Quick View", f"Skill '{name}' not found.")
+            messagebox.showwarning("Open with Editor", f"Skill '{name}' not found.")
             return
 
-        # Read file content
         file_path = self._registry_service.repo_root / skill.path
         if not file_path.exists():
-            messagebox.showwarning("Quick View", f"File not found: {file_path}")
+            messagebox.showwarning("Open with Editor", f"File not found: {file_path}")
             return
 
         try:
-            content = file_path.read_text(encoding="utf-8")
+            open_with_default_app(file_path)
         except Exception as e:
-            messagebox.showerror("Quick View", f"Error reading file: {e}")
-            return
-
-        # Parse markdown for display
-        h1, summary, toc = self._parse_markdown_preview(content)
-
-        # Create popup window
-        popup = tk.Toplevel(self)
-        popup.title(f"Quick View: {name}")
-        popup.geometry("500x400")
-        popup.transient(self.winfo_toplevel())
-        popup.grab_set()
-
-        # Content frame with scrollbar
-        frame = ttk.Frame(popup, padding=10)
-        frame.pack(fill=tk.BOTH, expand=True)
-
-        # H1 Title
-        title_label = ttk.Label(
-            frame, text=h1, font=("TkDefaultFont", 14, "bold"), wraplength=460
-        )
-        title_label.pack(anchor=tk.W, pady=(0, 10))
-
-        # Summary
-        if summary:
-            summary_label = ttk.Label(frame, text=summary, wraplength=460)
-            summary_label.pack(anchor=tk.W, pady=(0, 10))
-
-        # TOC (H2 headings)
-        if toc:
-            toc_label = ttk.Label(
-                frame, text="Contents:", font=("TkDefaultFont", 10, "bold")
-            )
-            toc_label.pack(anchor=tk.W, pady=(5, 2))
-            for heading in toc:
-                h2_label = ttk.Label(frame, text=f"  • {heading}")
-                h2_label.pack(anchor=tk.W)
-
-        # Close button
-        close_btn = ttk.Button(popup, text="Close", command=popup.destroy)
-        close_btn.pack(pady=10)
-
-        # Center popup on parent
-        popup.update_idletasks()
-        x = self.winfo_rootx() + (self.winfo_width() // 2) - (popup.winfo_width() // 2)
-        y = (
-            self.winfo_rooty()
-            + (self.winfo_height() // 2)
-            - (popup.winfo_height() // 2)
-        )
-        popup.geometry(f"+{x}+{y}")
-
-    def _parse_markdown_preview(self, content: str) -> tuple[str, str, list[str]]:
-        """Parse markdown content for Quick View display.
-
-        Args:
-            content: Raw markdown content
-
-        Returns:
-            Tuple of (h1_title, summary_paragraph, list_of_h2_headings)
-        """
-        lines = content.splitlines()
-        h1 = ""
-        summary = ""
-        toc: list[str] = []
-        in_summary = False
-
-        for line in lines:
-            stripped = line.strip()
-
-            # Extract H1
-            if stripped.startswith("# ") and not h1:
-                h1 = stripped[2:].strip()
-                in_summary = True
-                continue
-
-            # Extract first paragraph after H1 as summary
-            if in_summary:
-                if stripped.startswith("#"):
-                    in_summary = False
-                elif stripped:
-                    if not summary:
-                        summary = stripped
-                    else:
-                        # Stop at next paragraph break or heading
-                        pass
-                elif summary:
-                    # Empty line after summary paragraph
-                    in_summary = False
-
-            # Collect H2 headings
-            if stripped.startswith("## "):
-                toc.append(stripped[3:].strip())
-
-        return h1, summary, toc
+            messagebox.showerror("Error", f"Could not open file: {e}")
 
     def _open_with_notepad(self, listbox: tk.Listbox) -> None:
         """Open the selected file with Notepad.
@@ -571,16 +458,6 @@ class ConfigPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                subprocess.run(["notepad.exe", str(file_path)], check=False)
-            else:
-                # Fallback attempts
-                cmd = ["xdg-open", str(file_path)]
-                if platform.system() == "Darwin":
-                    cmd = ["open", str(file_path)]
-                subprocess.run(cmd, check=False)
-
-            logger.info("open_with_notepad", path=str(file_path))
+            open_with_notepad(file_path)
         except Exception as e:
-            logger.error("open_with_notepad_error", error=str(e))
             messagebox.showerror("Error", f"Could not open editor: {e}")
