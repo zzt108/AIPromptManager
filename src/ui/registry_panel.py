@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Callable
 import structlog
 
 from ui.dialogs.rename_dialog import RenameDialog
+from ui.dialogs.move_dialog import MoveDialog
 from models.skill_status import SkillStatus
 
 if TYPE_CHECKING:
@@ -178,6 +179,10 @@ class RegistryPanel(ttk.Frame):
         self.context_menu.add_command(
             label="Rename Intelligently...",
             command=self._on_rename_click,
+        )
+        self.context_menu.add_command(
+            label="Move to Folder...",
+            command=self._on_move_click,
         )
         self.context_menu.add_separator()
         self.context_menu.add_command(
@@ -585,6 +590,41 @@ class RegistryPanel(ttk.Frame):
             except Exception as e:
                 logger.error("rename_error", error=str(e))
                 messagebox.showerror("Rename Failed", str(e))
+
+    def _on_move_click(self) -> None:
+        """Handle move action."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        skill_names = list(selection)
+
+        # Determine initial directory from first selected skill
+        initial_dir = None
+        if skill_names:
+            first_skill = self._service.get_skill(skill_names[0])
+            if first_skill:
+                initial_dir = (self._service.repo_root / first_skill.path).parent
+
+        dialog = MoveDialog(
+            self,
+            repo_root=self._service.repo_root,
+            initial_dir=initial_dir,
+            count=len(skill_names),
+        )
+        self.wait_window(dialog)
+
+        if dialog.result:
+            try:
+                moved = self._service.move_skills(skill_names, dialog.result)
+                if moved > 0:
+                    self._status_callback(f"Moved {moved} skills to {dialog.result}.")
+                    self.refresh_list()
+                else:
+                    messagebox.showwarning("Move", "No skills were moved.")
+            except Exception as e:
+                logger.error("move_error", error=str(e))
+                messagebox.showerror("Move Failed", str(e))
 
     def _on_archive_click(self) -> None:
         """Handle archive action."""

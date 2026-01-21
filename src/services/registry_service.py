@@ -990,3 +990,103 @@ class RegistryService:
         """
         matches = self.find_skills_by_basename(basename)
         return matches[0] if matches else None
+
+    def move_skills(self, skill_names: list[str], dest_folder: str) -> int:
+        """Move skills to a specific destination folder.
+
+        Preserves the filename but changes the directory.
+        Updates status if moving to/from Archive.
+
+        Args:
+            skill_names: List of skill names to move
+            dest_folder: Target directory (relative to repo root)
+
+        Returns:
+            Number of skills successfully moved
+        """
+        registry = self._load_registry()
+        moved_count = 0
+        dest_path_root = self.repo_root / dest_folder
+
+        # Ensure destination exists
+        try:
+            dest_path_root.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.error("create_dest_failed", dest=dest_folder, error=str(e))
+            return 0
+
+        for name in skill_names:
+            if name not in registry.skills:
+                logger.warning("skill_not_found_for_move", name=name)
+                continue
+
+            skill = registry.skills[name]
+            current_path = self.repo_root / skill.path
+
+            # Target filename matches current filename
+            filename = current_path.name
+            new_path = dest_path_root / filename
+
+            if not current_path.exists():
+                logger.error("file_not_found_for_move", path=str(current_path))
+                continue
+
+            if new_path.exists() and new_path != current_path:
+                logger.error("move_destination_exists", path=str(new_path))
+                continue
+
+            # Check for archive status change
+            # Normalize paths for comparison
+            dest_p = Path(dest_folder)
+            archive_p = Path(ARCHIVE_DIR)
+            is_dest_archive = dest_p == archive_p or archive_p in dest_p.parents
+
+            # Determine new status
+            new_status = skill.status
+            new_enabled = skill.is_enabled
+
+            if is_dest_archive:
+                new_status = SkillStatus.ARCHIVED
+                new_enabled = False
+            elif skill.status == SkillStatus.ARCHIVED:
+                # Moving out of archive
+                new_status = SkillStatus.VALID
+                # Keep disabled implies manual intervention needed to enable?
+                # Or if it was valid before? We don't know.
+                # Let's keep current enabled state (which is False for archived)
+                pass
+
+            try:
+                # Move file
+                current_path.rename(new_path)
+
+                # Update registry
+                new_relative_path = new_path.relative_to(self.repo_root)
+                registry.skills[name] = Skill(
+                    name=skill.name,
+                    path=new_relative_path,
+                    description=skill.description,
+                    type=skill.type,
+                    major=skill.major,
+                    minor=skill.minor,
+                    basename=skill.basename,
+                    is_enabled=new_enabled,
+                    status=new_status,
+                    status_detail=None,
+                    modified_at=new_path.stat().st_mtime,
+                )
+                moved_count += 1
+                logger.info(
+                    "skill_moved",
+                    name=name,
+                    old=str(skill.path),
+                    new=str(new_relative_path),
+                )
+
+            except OSError as e:
+                logger.error("move_failed", name=name, error=str(e))
+
+        if moved_count > 0:
+            self._save_registry()
+
+        return moved_count
