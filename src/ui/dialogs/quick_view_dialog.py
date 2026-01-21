@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import os
-import platform
-import subprocess
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import TYPE_CHECKING, Callable
 
 import structlog
+
+from utils.file_launcher import open_with_default_app, open_with_notepad
 
 if TYPE_CHECKING:
     from services.registry_service import RegistryService
@@ -178,25 +177,13 @@ class QuickViewDialog(tk.Toplevel):
     def _open_with_editor(self) -> None:
         """Open file with default editor."""
         try:
-            if platform.system() == "Windows":
-                os.startfile(self.file_path)
-            elif platform.system() == "Darwin":
-                subprocess.run(["open", self.file_path], check=False)
-            else:
-                subprocess.run(["xdg-open", self.file_path], check=False)
-            logger.info("quick_view_open_editor", path=str(self.file_path))
+            open_with_default_app(self.file_path)
         except Exception as e:
-            logger.error("quick_view_open_editor_error", error=str(e))
             messagebox.showerror("Error", f"Could not open file: {e}")
 
     def _open_with_notepad(self) -> None:
         """Open file with Notepad."""
         try:
-            if platform.system() == "Windows":
-                subprocess.Popen(["notepad.exe", str(self.file_path)])
-            else:
-                self._open_with_editor()
-            logger.info("quick_view_open_notepad", path=str(self.file_path))
+            open_with_notepad(self.file_path)
         except Exception as e:
-            logger.error("quick_view_open_notepad_error", error=str(e))
             messagebox.showerror("Error", f"Could not open Notepad: {e}")

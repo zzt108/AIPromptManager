@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import os
-import platform
-import subprocess
 import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox, ttk
@@ -12,6 +10,11 @@ from typing import TYPE_CHECKING, Callable
 
 import structlog
 
+from utils.file_launcher import (
+    open_with_default_app,
+    open_with_notepad,
+    show_in_explorer,
+)
 from ui.dialogs.rename_dialog import RenameDialog
 from ui.dialogs.move_dialog import MoveDialog
 from ui.dialogs.quick_view_dialog import QuickViewDialog
@@ -492,15 +495,8 @@ class RegistryPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                subprocess.run(["explorer", "/select,", file_path], check=False)
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", "-R", file_path], check=False)
-            else:  # Linux
-                subprocess.run(["xdg-open", os.path.dirname(file_path)], check=False)
-            logger.info("show_in_explorer", path=file_path)
+            show_in_explorer(file_path)
         except Exception as e:
-            logger.error("show_in_explorer_error", error=str(e))
             messagebox.showerror("Error", f"Could not open explorer: {e}")
 
     def _open_with_editor(self) -> None:
@@ -511,15 +507,8 @@ class RegistryPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                os.startfile(file_path)
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", file_path], check=False)
-            else:  # Linux
-                subprocess.run(["xdg-open", file_path], check=False)
-            logger.info("open_with_editor", path=file_path)
+            open_with_default_app(file_path)
         except Exception as e:
-            logger.error("open_with_editor_error", error=str(e))
             messagebox.showerror("Error", f"Could not open file: {e}")
 
     def _open_with_notepad(self) -> None:
@@ -530,14 +519,8 @@ class RegistryPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                subprocess.Popen(["notepad.exe", file_path])
-            else:
-                # Fallback for non-Windows (mostly for dev/testing)
-                self._open_with_editor()
-            logger.info("open_with_notepad", path=file_path)
+            open_with_notepad(file_path)
         except Exception as e:
-            logger.error("open_with_notepad_error", error=str(e))
             messagebox.showerror("Error", f"Could not open Notepad: {e}")
 
     def _on_rename_click(self) -> None:

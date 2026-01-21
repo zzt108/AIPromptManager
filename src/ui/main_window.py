@@ -13,7 +13,8 @@ if TYPE_CHECKING:
     from services.registry_service import RegistryService
 
 from ui.build_panel import BuildPanel
-from ui.config_panel import ConfigPanel, ToolTip
+from ui.config_panel import ConfigPanel
+from ui.widgets.tooltip import ToolTip
 from ui.registry_panel import RegistryPanel
 
 logger = structlog.get_logger(__name__)

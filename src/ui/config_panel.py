@@ -1,64 +1,22 @@
 from __future__ import annotations
 
 import tkinter as tk
-import os
-import platform
-import subprocess
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import TYPE_CHECKING, Callable, cast
 
 import structlog
 
+from utils.file_launcher import open_with_default_app, open_with_notepad
+from ui.widgets.tooltip import ToolTip
 from ui.dialogs.quick_view_dialog import QuickViewDialog
+
 from models.agent_config import AgentConfig
 
 if TYPE_CHECKING:
     from services.registry_service import RegistryService
 
 logger = structlog.get_logger(__name__)
-
-
-class ToolTip:
-    """Tooltip helper class for displaying hover hints on widgets."""
-
-    def __init__(self, widget: tk.Widget, text: str) -> None:
-        """Initialize tooltip.
-
-        Args:
-            widget: Widget to attach tooltip to
-            text: Tooltip text to display
-        """
-        self.widget = widget
-        self.text = text
-        self.tooltip_window: tk.Toplevel | None = None
-        widget.bind("<Enter>", self._show)
-        widget.bind("<Leave>", self._hide)
-
-    def _show(self, event: tk.Event[tk.Misc]) -> None:
-        """Show tooltip near the widget."""
-        if self.tooltip_window:
-            return
-        x = self.widget.winfo_rootx() + 20
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
-        self.tooltip_window = tk.Toplevel(self.widget)
-        self.tooltip_window.wm_overrideredirect(True)
-        self.tooltip_window.wm_geometry(f"+{x}+{y}")
-        label = ttk.Label(
-            self.tooltip_window,
-            text=self.text,
-            background="#ffffe0",
-            relief="solid",
-            borderwidth=1,
-            padding=(5, 2),
-        )
-        label.pack()
-
-    def _hide(self, event: tk.Event[tk.Misc]) -> None:
-        """Hide tooltip."""
-        if self.tooltip_window:
-            self.tooltip_window.destroy()
-            self.tooltip_window = None
 
 
 class ConfigPanel(ttk.Frame):
@@ -470,15 +428,8 @@ class ConfigPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                os.startfile(file_path)
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", file_path], check=False)
-            else:  # Linux
-                subprocess.run(["xdg-open", file_path], check=False)
-            logger.info("open_with_editor", path=str(file_path))
+            open_with_default_app(file_path)
         except Exception as e:
-            logger.error("open_with_editor_error", error=str(e))
             messagebox.showerror("Error", f"Could not open file: {e}")
 
     def _open_with_notepad(self, listbox: tk.Listbox) -> None:
@@ -507,12 +458,6 @@ class ConfigPanel(ttk.Frame):
             return
 
         try:
-            if platform.system() == "Windows":
-                subprocess.Popen(["notepad.exe", str(file_path)])
-            else:
-                # Fallback for non-Windows
-                self._open_with_editor(listbox)
-            logger.info("open_with_notepad", path=str(file_path))
+            open_with_notepad(file_path)
         except Exception as e:
-            logger.error("open_with_notepad_error", error=str(e))
             messagebox.showerror("Error", f"Could not open editor: {e}")
