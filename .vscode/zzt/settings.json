@@ -1,0 +1,31 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": [
+        "tests",
+        "-v"
+    ],
+    "python.testing.pytestPath": "${workspaceFolder}/.venv/Scripts/pytest.exe",
+    "python.linting.mypyEnabled": true,
+    "python.linting.mypyPath": "${workspaceFolder}/.venv/Scripts/mypy.exe",
+    "python.linting.enabled": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackPath": "${workspaceFolder}/.venv/Scripts/black.exe",
+    "python.terminal.activateEnvironment": true,
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/.pytest_cache": true,
+        "**/.mypy_cache": true,
+        "**/*.egg-info": true
+    },
+    "editor.fontSize": 16,
+    "files.autoSave": "onWindowChange",
+    "editor.defaultFormatter": "vscode.markdown-language-features",
+    "editor.fontFamily": "Consolas, 'Arial Narrow', monospace",
+    "workbench.colorTheme": "Winter is Coming (Dark Blue)",
+    "[markdown]": {
+        "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+    }
+}
