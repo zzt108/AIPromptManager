@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Customizable command-line arguments
 - **Settings Dialog** - Centralized configuration for application settings (currently Merge Tool)
 - **Persistent Settings** - Application settings are now saved to `.apm/settings.json`
+- **Move Files to Folder** - Organize skills by moving them into subfolders via context menu
+- **Archive/Restore Service** - Archive deprecated skills to `.archive/` and restore them later
+  - Preserves original directory structure during archive/restore
+- **Refactored Quick View** - Improved consistency and logic for Quick View panels
 
 ### Improvements
 

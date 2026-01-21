@@ -211,7 +211,8 @@ RegistryService "1" *-- "*" Skill
 - **Show Hidden** checkbox to reveal greyed-out items
 - **Show Archived** checkbox to reveal archived items (stored in `.archive/`)
 - **Status Indicators**: ✓ Valid, ⚠️ Unrecognized, ❌ Parse Error, 📦 Archived
-- Context actions: Show in Explorer, Open with Editor, Open with Notepad
+- **Compare Selected**: Launch external merge tool (2-way/3-way support)
+- **Context Actions**: Show in Explorer, Open with Editor, Open with Notepad, Move to Folder
 
 ### Profession Designer
 

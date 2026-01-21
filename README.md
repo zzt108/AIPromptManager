@@ -40,9 +40,10 @@ python src/main.py --data-dir c:\Path\To\YourPrompts
 - **Status Indicators** (✓/⚠️/❌) showing file validity and parse status
 - **YAML Support** for `.yaml` and `.yml` skill files
 - **File Sync** with bidirectional change detection and conflict resolution dialogs
-- **Archive/Restore** management for deprecated or unused skills
+- **Archive/Restore** management for deprecated or unused skills (with structure preservation)
 - **Compare Tool** integration for diffing skill versions (supports P4Merge, KDiff3, WinMerge, VS Code)
-- **Context Menu** actions: Quick View, Show in Explorer, Open with Editor, Open with Notepad
+- **Move Files** organization into subfolders via context menu
+- **Context Menu** actions: Quick View, Show in Explorer, Open with Editor, Open with Notepad, Move to Folder
 
 ## 🏗️ Architecture
 
