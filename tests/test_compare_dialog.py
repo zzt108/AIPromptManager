@@ -1,59 +1,89 @@
+"""Tests for CompareDialog."""
+
+from __future__ import annotations
+
 import sys
+import importlib
 from unittest.mock import MagicMock, patch
 import pytest
 from pathlib import Path
+from typing import Any, Dict, List, Optional, cast
 
 
-# Define MockToplevel FIRST
+# Define MockToplevel class that behaves like a Toplevel but is a dummy
 class MockToplevel:
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, parent: Any = None, **kwargs: Any) -> None:
         self.parent = parent
 
-    def transient(self, *args):
+    def transient(self, *args: Any) -> None:
         pass
 
-    def grab_set(self):
+    def grab_set(self) -> None:
         pass
 
-    def geometry(self, *args):
+    def geometry(self, *args: Any) -> None:
         pass
 
-    def update_idletasks(self):
+    def update_idletasks(self) -> None:
         pass
 
-    def title(self, *args):
+    def title(self, *args: Any) -> None:
         pass
 
-    def winfo_rootx(self):
+    def winfo_rootx(self) -> int:
         return 0
 
-    def winfo_rooty(self):
+    def winfo_rooty(self) -> int:
         return 0
 
-    def winfo_width(self):
+    def winfo_width(self) -> int:
         return 100
 
-    def winfo_height(self):
+    def winfo_height(self) -> int:
         return 100
 
-    def destroy(self):
+    def destroy(self) -> None:
         pass
 
+    def winfo_toplevel(self) -> Any:
+        return self
 
-# Mock tkinter before importing the module under test
-mock_tk = MagicMock()
-mock_tk.Toplevel = MockToplevel  # Use the Mock class that accepts args
-sys.modules["tkinter"] = mock_tk
-sys.modules["tkinter.ttk"] = MagicMock()
-sys.modules["tkinter.messagebox"] = MagicMock()
-sys.modules["tkinter.filedialog"] = MagicMock()
 
-# Now import
-from ui.dialogs.compare_dialog import CompareDialog
+class MockVar:
+    def __init__(self, value: str = "") -> None:
+        self._val = value
+
+    def get(self) -> str:
+        return self._val
+
+    def set(self, v: str) -> None:
+        self._val = v
 
 
 @pytest.fixture
-def mock_settings_service():
+def isolated_compare_dialog_class() -> Any:
+    """Import CompareDialog in an environment where tkinter is mocked."""
+    mock_tk = MagicMock()
+    mock_tk.Toplevel = MockToplevel
+    mock_tk.StringVar = MockVar
+
+    with patch.dict(
+        "sys.modules",
+        {
+            "tkinter": mock_tk,
+            "tkinter.ttk": MagicMock(),
+            "tkinter.messagebox": MagicMock(),
+            "tkinter.filedialog": MagicMock(),
+        },
+    ):
+        import ui.dialogs.compare_dialog
+
+        importlib.reload(ui.dialogs.compare_dialog)
+        return ui.dialogs.compare_dialog.CompareDialog
+
+
+@pytest.fixture
+def mock_settings_service() -> MagicMock:
     service = MagicMock()
     service.get_merge_tool_config.return_value = {
         "name": "TestTool",
@@ -65,94 +95,66 @@ def mock_settings_service():
 
 
 @pytest.fixture
-def mock_registry_service():
+def mock_registry_service() -> MagicMock:
     service = MagicMock()
     return service
 
 
 @pytest.fixture
-def mock_parent():
+def mock_parent() -> MagicMock:
     parent = MagicMock()
     parent.winfo_toplevel.return_value = parent
-    parent.winfo_rootx.return_value = 0
-    parent.winfo_rooty.return_value = 0
-    parent.winfo_width.return_value = 100
-    parent.winfo_height.return_value = 100
     return parent
 
 
-class TestCompareDialog:
-    """Tests for CompareDialog logic."""
-
-
-def test_launch_2way(mock_parent, mock_settings_service, mock_registry_service):
+def test_launch_2way(
+    mock_parent: MagicMock,
+    mock_settings_service: MagicMock,
+    mock_registry_service: MagicMock,
+    isolated_compare_dialog_class: Any,
+) -> None:
     """Test generating 2-way compare command."""
     files = [Path("c:/file1.txt"), Path("c:/file2.txt")]
 
-    # We need to ensure logic works. Logic uses self.left_var etc. which are tk.StringVar.
-    # We need to mock StringVar too.
-
-    class MockVar:
-        def __init__(self, value=""):
-            self._val = value
-
-        def get(self):
-            return self._val
-
-        def set(self, v):
-            self._val = v
-
-    mock_tk.StringVar = MockVar
-
-    # Mock ttk.Combobox, Button, Label, Frame to avoid errors during _setup_ui
-    # The mocks in sys.modules might be enough if they return Mocks that accept calls.
-
-    dialog = CompareDialog(
+    dialog = isolated_compare_dialog_class(
         mock_parent, mock_settings_service, mock_registry_service, files
     )
 
-    # Override selections for the test case
-    dialog.left_var = MockVar("file1.txt")
-    dialog.right_var = MockVar("file2.txt")
-    dialog.base_var = MockVar("")
-    dialog.file_map = {
+    d = cast(Any, dialog)
+    d.left_var = MockVar("file1.txt")
+    d.right_var = MockVar("file2.txt")
+    d.base_var = MockVar("")
+    d.file_map = {
         "file1.txt": Path("c:/file1.txt"),
         "file2.txt": Path("c:/file2.txt"),
     }
 
     with patch("subprocess.Popen") as mock_popen:
         dialog._launch()
-
         expected_cmd = '"test_tool.exe" c:\\file1.txt c:\\file2.txt'
         mock_popen.assert_called_once()
         args, _ = mock_popen.call_args
         assert args[0] == expected_cmd
 
 
-def test_launch_3way(mock_parent, mock_settings_service, mock_registry_service):
+def test_launch_3way(
+    mock_parent: MagicMock,
+    mock_settings_service: MagicMock,
+    mock_registry_service: MagicMock,
+    isolated_compare_dialog_class: Any,
+) -> None:
     """Test generating 3-way compare command."""
     files = [Path("c:/left.txt"), Path("c:/right.txt"), Path("c:/base.txt")]
 
-    class MockVar:
-        def __init__(self, value=""):
-            self._val = value
-
-        def get(self):
-            return self._val
-
-        def set(self, v):
-            self._val = v
-
-    mock_tk.StringVar = MockVar
-
-    dialog = CompareDialog(
+    dialog = isolated_compare_dialog_class(
         mock_parent, mock_settings_service, mock_registry_service, files
     )
 
-    dialog.left_var = MockVar("left.txt")
-    dialog.right_var = MockVar("right.txt")
-    dialog.base_var = MockVar("base.txt")
-    dialog.file_map = {
+    d = cast(Any, dialog)
+    d.left_var = MockVar("left.txt")
+    d.right_var = MockVar("right.txt")
+    d.base_var = MockVar("base.txt")
+    d.file_map = {
         "left.txt": Path("c:/left.txt"),
         "right.txt": Path("c:/right.txt"),
         "base.txt": Path("c:/base.txt"),
@@ -167,31 +169,23 @@ def test_launch_3way(mock_parent, mock_settings_service, mock_registry_service):
 
 
 def test_launch_paths_with_spaces(
-    mock_parent, mock_settings_service, mock_registry_service
-):
+    mock_parent: MagicMock,
+    mock_settings_service: MagicMock,
+    mock_registry_service: MagicMock,
+    isolated_compare_dialog_class: Any,
+) -> None:
     """Test handling of paths with spaces."""
     files = [Path("c:/path with spaces/file1.txt"), Path("c:/file2.txt")]
 
-    class MockVar:
-        def __init__(self, value=""):
-            self._val = value
-
-        def get(self):
-            return self._val
-
-        def set(self, v):
-            self._val = v
-
-    mock_tk.StringVar = MockVar
-
-    dialog = CompareDialog(
+    dialog = isolated_compare_dialog_class(
         mock_parent, mock_settings_service, mock_registry_service, files
     )
 
-    dialog.left_var = MockVar("file1.txt")
-    dialog.right_var = MockVar("file2.txt")
-    dialog.base_var = MockVar("")
-    dialog.file_map = {
+    d = cast(Any, dialog)
+    d.left_var = MockVar("file1.txt")
+    d.right_var = MockVar("file2.txt")
+    d.base_var = MockVar("")
+    d.file_map = {
         "file1.txt": Path("c:/path with spaces/file1.txt"),
         "file2.txt": Path("c:/file2.txt"),
     }

@@ -54,13 +54,13 @@ Run these checks:
 
 ```bash
 # Run tests
-pytest tests/ -v
+python -m pytest tests/ -v
 
 # Type check
-mypy --strict src/
+python -m mypy --strict src/ tests/
 
 # Format code
-black src/ tests/
+python -m black src/ tests/
 ```
 
 #### Pull Request Process
@@ -76,6 +76,7 @@ black src/ tests/
 #### Commit Messages
 
 Follow conventional commits:
+
 - `feat: Add new feature`
 - `fix: Fix bug in registry service`
 - `docs: Update README`

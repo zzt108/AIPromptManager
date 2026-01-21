@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 from ui.build_panel import BuildPanel
 from ui.config_panel import ConfigPanel
 from ui.widgets.tooltip import ToolTip
-from ui.widgets.tooltip import ToolTip
 from ui.registry_panel import RegistryPanel
 from ui.dialogs.settings_dialog import SettingsDialog
 
