@@ -10,7 +10,7 @@ import pytest
 from models.skill import Skill
 from models.registry_schema import RegistrySchema
 from repositories.registry_repository import RegistryRepository
-from services.registry_service import RegistryService
+from services.registry_service import RegistryService, ARCHIVE_DIR
 
 
 @pytest.fixture
@@ -27,6 +27,7 @@ def tmp_repo_structure(tmp_path: Path) -> Path:
     (tmp_path / "core").mkdir()
     (tmp_path / "platform" / "python").mkdir(parents=True)
     (tmp_path / "workflows").mkdir()
+    (tmp_path / ARCHIVE_DIR).mkdir()
 
     # Create test markdown files
     (tmp_path / "core" / "GUIDE-1-2-General.md").write_text(

@@ -25,6 +25,7 @@ _VERSIONED_PATTERN = re.compile(
     r"^(?P<type>[a-zA-Z0-9_]+)-(?P<major>\d+)-(?P<minor>\d+)-(?P<basename>.+)\.md$"
 )
 _VERSIONLESS_PATTERN = re.compile(r"^(?P<type>[a-zA-Z0-9_]+)--(?P<basename>.+)\.md$")
+ARCHIVE_DIR = ".archive"
 
 
 class RegistryService:
@@ -355,7 +356,13 @@ class RegistryService:
         # Track files found during scan
         found_files: set[str] = set()
 
-        for directory in scan_directories:
+        # Ensure archive directory is scanned if it exists
+        dirs_to_scan = list(scan_directories)
+        if ARCHIVE_DIR not in dirs_to_scan:
+            if (self.repo_root / ARCHIVE_DIR).exists():
+                dirs_to_scan.append(ARCHIVE_DIR)
+
+        for directory in dirs_to_scan:
             dir_path = self.repo_root / directory
             if not dir_path.exists():
                 result.errors.append(f"Directory not found: {directory}")
@@ -381,7 +388,36 @@ class RegistryService:
                                 abs(existing.modified_at - current_mtime) > 0.001
                             )
 
-                            if path_changed or file_modified:
+                            # Determine expected status based on path
+                            path_str = str(relative_path)
+                            is_in_archive = path_str.startswith(
+                                ARCHIVE_DIR + "/"
+                            ) or path_str.startswith(ARCHIVE_DIR + "\\")
+
+                            # Check if status is inconsistent with path
+                            status_mismatch = (
+                                is_in_archive
+                                and existing.status != SkillStatus.ARCHIVED
+                            ) or (
+                                not is_in_archive
+                                and existing.status == SkillStatus.ARCHIVED
+                            )
+
+                            if path_changed or file_modified or status_mismatch:
+                                # Determine status based on path
+                                # If file is in .archive/, mark as ARCHIVED
+                                # If file was ARCHIVED but moved out, mark as VALID
+                                if is_in_archive:
+                                    new_status = SkillStatus.ARCHIVED
+                                    new_is_enabled = False
+                                elif existing.status == SkillStatus.ARCHIVED:
+                                    # Was archived, now moved out - restore to VALID
+                                    new_status = SkillStatus.VALID
+                                    new_is_enabled = existing.is_enabled
+                                else:
+                                    new_status = existing.status
+                                    new_is_enabled = existing.is_enabled
+
                                 # We need to update the skill
                                 new_skill = Skill(
                                     name=existing.name,
@@ -391,8 +427,8 @@ class RegistryService:
                                     major=existing.major,
                                     minor=existing.minor,
                                     basename=existing.basename,
-                                    is_enabled=existing.is_enabled,
-                                    status=existing.status,
+                                    is_enabled=new_is_enabled,
+                                    status=new_status,
                                     status_detail=existing.status_detail,
                                     modified_at=current_mtime,
                                 )
@@ -788,6 +824,160 @@ class RegistryService:
             key=lambda i: (i.major, i.minor),
             reverse=True,
         )
+
+    def archive_skills(self, skill_names: list[str]) -> int:
+        """Archive a list of skills.
+
+        Moves the files to the .archive/ directory and updates the registry status.
+
+        Args:
+            skill_names: List of skill names to archive
+
+        Returns:
+            Number of skills successfully archived
+        """
+        registry = self._load_registry()
+        archived_count = 0
+        archive_root = self.repo_root / ARCHIVE_DIR
+
+        for name in skill_names:
+            if name not in registry.skills:
+                logger.warning("skill_not_found_for_archive", name=name)
+                continue
+
+            skill = registry.skills[name]
+            if skill.status == SkillStatus.ARCHIVED:
+                logger.info("skill_already_archived", name=name)
+                continue
+
+            # Calculate paths
+            original_path = self.repo_root / skill.path
+            archive_path = archive_root / skill.path
+
+            if not original_path.exists():
+                logger.error("file_not_found_for_archive", path=str(original_path))
+                continue
+
+            if archive_path.exists():
+                logger.error("archive_destination_exists", path=str(archive_path))
+                # Skip to prevent overwriting existing archive
+                continue
+
+            # Ensure archive directory exists
+            archive_path.parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                # Move file
+                original_path.rename(archive_path)
+
+                # Update registry
+                new_relative_path = archive_path.relative_to(self.repo_root)
+                registry.skills[name] = Skill(
+                    name=skill.name,
+                    path=new_relative_path,
+                    description=skill.description,
+                    type=skill.type,
+                    major=skill.major,
+                    minor=skill.minor,
+                    basename=skill.basename,
+                    # original_path removed - relying on folder structure
+                    is_enabled=False,  # Implicitly hidden
+                    status=SkillStatus.ARCHIVED,
+                    status_detail=None,
+                    modified_at=archive_path.stat().st_mtime,
+                )
+                archived_count += 1
+                logger.info("skill_archived", name=name, path=str(archive_path))
+
+            except OSError as e:
+                logger.error("archive_failed", name=name, error=str(e))
+
+        if archived_count > 0:
+            self._save_registry()
+
+        return archived_count
+
+    def restore_skills(self, skill_names: list[str]) -> int:
+        """Restore a list of skills from archive.
+
+        Moves the files back to their original location (stripping .archive prefix)
+        and updates the registry status.
+
+        Args:
+            skill_names: List of skill names to restore
+
+        Returns:
+            Number of skills successfully restored
+        """
+        registry = self._load_registry()
+        restored_count = 0
+        archive_root = self.repo_root / ARCHIVE_DIR
+
+        for name in skill_names:
+            if name not in registry.skills:
+                logger.warning("skill_not_found_for_restore", name=name)
+                continue
+
+            skill = registry.skills[name]
+            if skill.status != SkillStatus.ARCHIVED:
+                logger.info("skill_not_archived", name=name)
+                continue
+
+            # Calculate paths
+            current_path = self.repo_root / skill.path
+
+            # Determine target path
+            # Target path: strip ARCHIVE_DIR from the relative path
+            try:
+                # Get path relative to archive root to restore original structure
+                original_relative_path = current_path.relative_to(archive_root)
+            except ValueError:
+                # Fallback if path manipulation fails or manual edit messed it up
+                logger.error("invalid_archive_path", path=str(skill.path))
+                continue
+
+            restore_path = self.repo_root / original_relative_path
+
+            if not current_path.exists():
+                logger.error("archived_file_not_found", path=str(current_path))
+                continue
+
+            if restore_path.exists():
+                logger.error("restore_destination_exists", path=str(restore_path))
+                continue
+
+            # Ensure restore directory exists
+            restore_path.parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                # Move file
+                current_path.rename(restore_path)
+
+                # Update registry
+                registry.skills[name] = Skill(
+                    name=skill.name,
+                    path=original_relative_path,
+                    description=skill.description,
+                    type=skill.type,
+                    major=skill.major,
+                    minor=skill.minor,
+                    basename=skill.basename,
+                    # original_path removed
+                    is_enabled=False,  # Restored skills stay disabled
+                    status=SkillStatus.VALID,
+                    status_detail=None,
+                    modified_at=restore_path.stat().st_mtime,
+                )
+                restored_count += 1
+                logger.info("skill_restored", name=name, path=str(restore_path))
+
+            except OSError as e:
+                logger.error("restore_failed", name=name, error=str(e))
+
+        if restored_count > 0:
+            self._save_registry()
+
+        return restored_count
 
     def get_latest_version(self, basename: str) -> Skill | None:
         """Get the latest version of a skill by basename.

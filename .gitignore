@@ -28,7 +28,10 @@ ENV/
 env/
 
 # IDEs
-.vscode/
+.vscode/*
+!.vscode/zzt/
+
+
 .idea/
 *.swp
 *.swo

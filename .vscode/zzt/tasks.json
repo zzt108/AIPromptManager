@@ -1,0 +1,128 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "AI Prompt Manager: Run (Demo Mode)",
+            "type": "shell",
+            "command": "${workspaceFolder}/apmDemo.bat",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "AI Prompt Manager: Run (Studio Mode)",
+            "type": "shell",
+            "command": "${workspaceFolder}/apm.bat",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "AI Prompt Manager: pytest - Run All Tests",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/Scripts/pytest.exe",
+            "args": [
+                "tests/",
+                "-v"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "AI Prompt Manager: pytest - Run Current File",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/Scripts/pytest.exe",
+            "args": [
+                "${relativeFile}",
+                "-v"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "AI Prompt Manager: mypy - Type Check All",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/Scripts/mypy.exe",
+            "args": [
+                "--strict",
+                "src/",
+                "tests/"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": {
+                "owner": "mypy",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^(.+?):(\\d+):(\\d+): (error|warning|note): (.+)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "AI Prompt Manager: black - Format All Code",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/Scripts/black.exe",
+            "args": [
+                "src/",
+                "tests/"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "AI Prompt Manager: Run Tests (Log to File)",
+            "type": "shell",
+            "command": "${workspaceFolder}/.agent/scripts/run_tests.bat",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        }
+    ]
+}
