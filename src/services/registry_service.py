@@ -356,7 +356,12 @@ class RegistryService:
         # Track files found during scan
         found_files: set[str] = set()
 
-        for directory in scan_directories:
+        # Ensure archive directory is always scanned
+        dirs_to_scan = list(scan_directories)
+        if ARCHIVE_DIR not in dirs_to_scan:
+            dirs_to_scan.append(ARCHIVE_DIR)
+
+        for directory in dirs_to_scan:
             dir_path = self.repo_root / directory
             if not dir_path.exists():
                 result.errors.append(f"Directory not found: {directory}")
@@ -845,6 +850,7 @@ class RegistryService:
                     major=skill.major,
                     minor=skill.minor,
                     basename=skill.basename,
+                    # original_path removed - relying on folder structure
                     is_enabled=False,  # Implicitly hidden
                     status=SkillStatus.ARCHIVED,
                     status_detail=None,
@@ -890,11 +896,10 @@ class RegistryService:
             # Calculate paths
             current_path = self.repo_root / skill.path
 
+            # Determine target path
             # Target path: strip ARCHIVE_DIR from the relative path
-            # skill.path is like ".archive/prompts/..."
             try:
                 # Get path relative to archive root to restore original structure
-                # e.g. "prompts/foo.md" from ".archive/prompts/foo.md"
                 original_relative_path = current_path.relative_to(archive_root)
             except ValueError:
                 # Fallback if path manipulation fails or manual edit messed it up
@@ -927,6 +932,7 @@ class RegistryService:
                     major=skill.major,
                     minor=skill.minor,
                     basename=skill.basename,
+                    # original_path removed
                     is_enabled=False,  # Restored skills stay disabled
                     status=SkillStatus.VALID,
                     status_detail=None,
