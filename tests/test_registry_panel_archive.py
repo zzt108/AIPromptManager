@@ -36,13 +36,14 @@ class TestRegistryPanelArchive:
     def panel(self, tk_root: tk.Tk) -> RegistryPanel:
         """Create a panel with mocked service."""
         service = MagicMock()
+        service = MagicMock()
         service.list_all.return_value = []
         service.repo_root = Path("/tmp")
         return RegistryPanel(tk_root, service, lambda msg: None)
 
     def test_archive_skills_success(self, panel: RegistryPanel) -> None:
         """Test invoking archive action."""
-        panel._service.list_all.return_value = [make_skill("Skill1")]
+        panel._service.list_all.return_value = [make_skill("Skill1")]  # type: ignore[attr-defined]
         panel.refresh_list()
 
         # Select item
@@ -52,14 +53,14 @@ class TestRegistryPanelArchive:
 
         # Mock confirmation and service
         with patch("tkinter.messagebox.askyesno", return_value=True):
-            panel._service.archive_skills.return_value = 1
+            panel._service.archive_skills.return_value = 1  # type: ignore[attr-defined]
             panel._on_archive_click()
 
-        panel._service.archive_skills.assert_called_with(["Skill1"])
+        panel._service.archive_skills.assert_called_with(["Skill1"])  # type: ignore[attr-defined]
 
     def test_archive_skills_cancel(self, panel: RegistryPanel) -> None:
         """Test cancelling archive action."""
-        panel._service.list_all.return_value = [make_skill("Skill1")]
+        panel._service.list_all.return_value = [make_skill("Skill1")]  # type: ignore[attr-defined]
         panel.refresh_list()
 
         children = panel.tree.get_children()
@@ -68,13 +69,13 @@ class TestRegistryPanelArchive:
         with patch("tkinter.messagebox.askyesno", return_value=False):
             panel._on_archive_click()
 
-        panel._service.archive_skills.assert_not_called()
+        panel._service.archive_skills.assert_not_called()  # type: ignore[attr-defined]
 
     def test_restore_skills_success(self, panel: RegistryPanel) -> None:
         """Test invoking restore action."""
         # Setup archived skill
         skill = make_skill("Skill1", SkillStatus.ARCHIVED)
-        panel._service.list_all.return_value = [skill]
+        panel._service.list_all.return_value = [skill]  # type: ignore[attr-defined]
 
         # Enable "Show Archived" to see it
         panel.show_archived_var.set(True)
@@ -85,14 +86,14 @@ class TestRegistryPanelArchive:
         panel.tree.selection_set(children[0])
 
         with patch("tkinter.messagebox.askyesno", return_value=True):
-            panel._service.restore_skills.return_value = 1
+            panel._service.restore_skills.return_value = 1  # type: ignore[attr-defined]
             panel._on_restore_click()
 
-        panel._service.restore_skills.assert_called_with(["Skill1"])
+        panel._service.restore_skills.assert_called_with(["Skill1"])  # type: ignore[attr-defined]
 
     def test_show_archived_filter(self, panel: RegistryPanel) -> None:
         """Test toggling the Show Archived checkbox."""
-        panel._service.list_all.return_value = [
+        panel._service.list_all.return_value = [  # type: ignore[attr-defined]
             make_skill("ValidSkill", SkillStatus.VALID),
             make_skill("ArchivedSkill", SkillStatus.ARCHIVED),
         ]

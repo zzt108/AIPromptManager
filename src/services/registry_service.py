@@ -356,10 +356,11 @@ class RegistryService:
         # Track files found during scan
         found_files: set[str] = set()
 
-        # Ensure archive directory is always scanned
+        # Ensure archive directory is scanned if it exists
         dirs_to_scan = list(scan_directories)
         if ARCHIVE_DIR not in dirs_to_scan:
-            dirs_to_scan.append(ARCHIVE_DIR)
+            if (self.repo_root / ARCHIVE_DIR).exists():
+                dirs_to_scan.append(ARCHIVE_DIR)
 
         for directory in dirs_to_scan:
             dir_path = self.repo_root / directory
