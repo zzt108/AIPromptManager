@@ -1,8 +1,8 @@
 # 🚀 AIPromptManager: Status & Roadmap
 
 **Last Updated:** 2026-01-22
-**Current Version:** Phase 3.3a (Complete)
-**Upcoming:** Phase 3.4 (New Features & Architecture)
+**Current Version:** Phase 3.4 (Complete)
+**Upcoming:** Phase 3.5 (Project/Domain Creation)
 
 This document serves as a unified source of truth for the project's history, current state, and planned architectural decisions.
 
@@ -23,31 +23,26 @@ AIPromptManager is a desktop application designed to manage, version, and assemb
 
 ---
 
-## ✅ 2. Current Implementation (Phase 3.3a)
+## ✅ 2. Current Implementation (Phase 3.4)
 
-We have just completed **Phase 3.3a: Registry Filesystem View**. The focus was on "Permissive Registry" logic—ensuring the application sees *what is actually on disk* rather than enforcing strict naming conventions that hide files.
+We have completed **Phase 3.4: New Features & Architecture**. This phase focused on critical file management capabilities, UI refactoring, and stability improvements.
 
 ### Key Features Implemented
 
-* **Permissive Scanning:** `RegistryService` now tracks ALL `.md`, `.yaml`, and `.yml` files in scanned directories, even if they don't match the standard `TYPE-Major-Minor-Name.md` convention.
-* **Intelligent Metadata Extraction:**
-    1. **Filename Pattern:** Tries to parse standard strict name.
-    2. **H1 Heading:** If filename fails, looks for `# Title (v1.0)` in the file content.
-    3. **Frontmatter:** If that fails, checks YAML frontmatter.
-    4. **Defaults:** Fallback to filename stem and version `0.0`.
-* **Status System:** Every Skill now has a status indicator:
-  * `VALID` (✅): Matches all conventions.
-  * `UNRECOGNIZED` (⚠️): Found on disk but violates naming rules (safe to use).
-  * `PARSE_ERROR` (❌): File exists but metadata could not be read.
-  * `ARCHIVED` (📦): File is located in the `.archive/` directory.
-
-### Codebase Highlights
-
-* **`src/models/skill.py`**: Updated `Skill` dataclass with `status` and `status_detail` fields.
-* **`src/services/registry_service.py`**:
-  * `refresh_registry()`: New scan loop for permissive tracking and archive detection.
-  * `_extract_metadata_intelligently()`: Hierarchy of extraction strategies.
-* **`src/ui/registry_panel.py`**: Visual indicators (icons, colors) in the Knowledge Base list.
+* **Archive & Restore Service:**
+  * Backend logic to move files to a hidden `.archive/` directory, preserving structure.
+  * Restore functionality to return files to their original location.
+  * Context menu integrations for "Archive" and "Restore" with correct status updates.
+* **File Management:**
+  * **Move Files:** "Move to Folder..." context menu option with a dialog for destination selection.
+  * **Intelligent Rename:** Renaming files updates the registry and handles metadata correctly.
+* **Architecture & Refactoring:**
+  * **Quick View:** Refactored into a unified `QuickViewDialog` shared by `RegistryPanel` and `ConfigPanel`.
+  * **Permissive Scanning:** `RegistryService` tracks all `.md` files, labeling them as `VALID`, `UNRECOGNIZED`, or `PARSE_ERROR`.
+* **Stability & Quality:**
+  * Fixed severe memory leaks in UI tests.
+  * Full `mypy` strict compliance and passing `pytest` suite.
+  * Pre-push hooks ensuring code quality before commits.
 
 ---
 
@@ -109,17 +104,17 @@ Deleted skills are not effectively removed; they are moved to an Archive.
 
 ---
 
-## 🗺️ 4. Roadmap (Phase 3.4 & Beyond)
+## 🗺️ 4. Roadmap (Phase 3.5 & Beyond)
 
-### Phase 3.4: New Features (Planned)
+### Phase 3.5: Profession & Domain Design (Next)
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| **Archive/Restore Service** | Backend logic to move files to/from `.archive/` and update registry status. | High |
-| **Move Files** | Right-click "Move to Folder..." to reorganize skills into directories. | Medium |
-| **Quick View Editing** | Allow editing the H1 title directly in the Quick View popup. | Low |
-| **Comparison Tool** | Integration with external merge tools (P4Merge, WinMerge) for 2-way/3-way diffs. | Medium |
-| **Settings Dialog** | Configuration for external tools and application defaults. | Medium |
+* **Refine Profession Creation:** Improve the UI/UX for creating, editing, and validating professions.
+* **Project/Domain Design & Implementation:**
+  * Design the data structure and storage for Domains (extending Professions).
+  * Implement the UI for creating and managing Domains.
+  * Establish inheritance logic (Domain extends Profession).
+
+### Future Considerations
 
 ### Phase 3.5: Editor Integration
 
