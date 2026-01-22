@@ -56,6 +56,14 @@ AIPromptManager uses clean architecture with separation of concerns:
 
 See [.doc/architecture.md](.doc/architecture.md) for detailed diagrams.
 
+### Repository Separation
+
+![Repository Separation](http://www.plantuml.com/plantuml/png/VOunJyCm48Lt_ufJfZAqtHbGAn0I0wW32q8Cr_YIc3e-w-uYL27-EsuJIf40J-_vVVVqLceeDlJHwIwaZ88zRB7UjS93yjSSMU2j2qPdkQS6XsYtdEm1UuAr18pEvNA6BK6rlji8zzdkCHKlC7jaZXSLl3iextcpjuuJh7EEeKOBd5x6GALUJj98JOlvEAjzua76OeNP3HgUAXkEdWIgFARB2b1XCZ-0HSsf2Uq8ZFgO-zAsHIMeXDgW9ll5gt8wOby_Xos_ROVv_Ee4mMMHwFLlSffLGAqn_GEEymetAAbpYOr0GjiPSFCz2WfxM3_tGI1pIAMw8o57oSFXngsA6lhu2G00)
+
+### Application Architecture
+
+![Application Architecture](http://www.plantuml.com/plantuml/png/TLDDRzim3BtxLmW-RHqoODSTXcB33WNQeLZsSHHecR65q690CSwoelzzSg2uYfUU7BxtcFT4KRTHGNG_K1MtFkn0O30xS5leSAr7GYFe5497M0W63knwuG6DoXwhAdUO-kUTkOSZIcsUAcCSGOpc0NpuxKFBXnDep3iJMB5XtfgFHdNx_bikColO-QXoj3i8I4dpFGEFKvr5ZiF6TxFaowai1StUKplpdwUgf2q7gz1OrqFei7tpDk7FrHpwmdBEhOAOC_yGnD7Z8JCRJufYCQIUhFWw_SvqxFbWUz-s6Em8CWLY9eJm2sG-zKOmzfQIRqgJKoft7Q4TVVID9w_75ogog7LC-o4iqnVJcBF329wW8Jmvf0JtwTFmdtD297IAxNLs0Ys6r9v7LIJEvi_56gnHHk-ms8N5MC-2fyML5vUzTZqEKFe3qUnzDL14jJvqWgt7y6fUcysAKGQM0SZ_HQl77Luvq0EtIFyVvsusUrbj6AOLYIePIFzu2Un0-mGyfaz6V3ndJNZ3J1aVKQBdaBjpfk8vtQnMYxUn8CjNSRdHgzMdvMLKXVeglwXD_Q4-kTGtTJ69wXP3kn_e7m00)
+
 ## 🛠️ Technology Stack
 
 - **Python 3.10+** with strict type hints
